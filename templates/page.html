@@ -1,0 +1,61 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+
+<html>
+<head>
+	<title>%%SITE_NAME%% %%TITLE%%</title>
+	<meta http-equiv="Content-Type" content="text/html; charset=%%CHARSET%%">
+	<meta name="description" content="%%DESCRIPTION%%">
+	<link rel="alternate" type="application/rss+xml" title="RSS" href="%%RSS%%">
+	<style type="text/css">
+		a:link,a:visited{color: #333333;
+		                 text-decoration: underline;}
+		a:hover{color: #999999;}
+		hr {border: 0;
+		    border-top: black 1px dashed;}
+		.header .logo {font-size: 200%;}
+		.header .logo a:link,
+		.header .logo a:visited{text-decoration: none;}
+		.footer .copyright {text-align: center;
+			 font-style: italic;
+			 font-size: 60%;}
+		.footer .previouspage {float: left;
+				       margin: 1em;
+				       font-family: monospace;
+				       font-size: 90%;}
+		.footer .nextpage {float: right;
+				   margin: 1em;
+				   font-family: monospace;
+				   font-size: 90%;}
+		.article {margin: 1em;}
+		.article h1 {font-size: 110%;}
+		.article h1 a:link,
+		.article h1 a:visited{text-decoration: none;}
+		.info {font-size: 90%;
+		       font-family: monospace;}
+		.comments {max-width: 780px;
+			   margin-left: 3em;
+			   margin-right: 3em;}
+		.comments .comment {margin: 1em;}
+	</style>
+</head>
+<body>
+
+<div class="header">
+	<div class="logo"><a href="%%BASE_URL%%"><b>%%SITE_NAME%%</b></a></div>
+	%%DESCRIPTION%%
+</div>
+
+%%BODY%%
+
+<div class="footer">
+	<hr>
+	<div class="nextpage">%%NEXT%%</div>
+	<div class="previouspage">%%PREVIOUS%%</div>
+	<div class="copyright">
+		%%COPYRIGHT%%<br>
+		The sources of this blog are available <a href="#">here</a>.
+	</div>
+</div>
+
+</body>
+</html>
