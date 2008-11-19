@@ -102,7 +102,7 @@ hput_escaped(char *s)
 	hputs(a);
 }
 
-static void
+void
 render_error(char *msg)
 {
 	FILE *fin;
@@ -260,8 +260,8 @@ render_comments(char *name)
 	fclose(fin);
 }
 
-void
-render_article(char *aname, char *title, struct tm *tm, FILE *fbody,
+static void
+render_article_content(char *aname, char *title, struct tm *tm, FILE *fbody,
     uint nb_comments)
 {
 	FILE *fin;
@@ -319,7 +319,20 @@ render_article(char *aname, char *title, struct tm *tm, FILE *fbody,
 }
 
 void
-render_page(char *aname, char *error)
+render_article(char *aname)
+{
+	if (aname == NULL)
+		read_articles(render_article_content);
+	else {
+		if (read_article(aname, render_article_content, NULL, 0) == -1)
+			render_error(ERR_PAGE_ARTICLE);
+		else
+			render_comments(aname);
+	}
+}
+
+void
+render_page(page_cb cb, char *data)
 {
 	FILE *fin;
 	char buf[BUFSIZ], *a, *b;
@@ -358,23 +371,25 @@ render_page(char *aname, char *error)
 						hputs(tag);
 					}
 				} else if (strcmp(a, "TITLE") == 0) {
-					if (aname == NULL) {
+					if (cb == render_article
+					    && data == NULL) {
 						if (tag != NULL) {
 							hputs("- tag:");
 							hputs(tag);
 						}
-					} else {
+					} else if (cb == render_article) {
 						char title[BUFSIZ];
 
 						*title = '\0';
-						read_article(aname, NULL,
+						read_article(data, NULL,
 						    title, BUFSIZ);
 						if (*title != '\0') {
 							hputs("- ");
 							hputs(title);
 						}
 					}
-				} else if (strcmp(a, "NEXT") == 0) {
+				} else if (strcmp(a, "NEXT") == 0
+				    && cb == render_article) {
 					if (offset > 1) {
 						hputs("<a href=\""BASE_URL
 						    "?p=");
@@ -383,29 +398,14 @@ render_page(char *aname, char *error)
 					} else if (offset == 1)
 						hputs("<a href=\""BASE_URL
 						    "\">"NAV_NEXT"</a>");
-				} else if (strcmp(a, "PREVIOUS") == 0) {
-					if (nb_articles >= NB_ARTICLES) {
-						hputs("<a href=\""BASE_URL
-						    "?p=");
-						hputd(offset+1);
-						hputs("\">"NAV_PREVIOUS"</a>");
-					}
-				} else if (strcmp(a, "BODY") == 0) {
-					if (error != NULL)
-						render_error(error);
-					else if (aname == NULL)
-						read_articles(
-						    render_article);
-					else {
-						if (read_article(aname,
-						    render_article,
-						    NULL, 0) == -1)
-							render_error(
-				    "The requested article does not exists!");
-						else
-							render_comments(aname);
-					}
-				}
+				} else if (strcmp(a, "PREVIOUS") == 0
+				    && nb_articles >= NB_ARTICLES) {
+					hputs("<a href=\""BASE_URL"?p=");
+					hputd(offset+1);
+					hputs("\">"NAV_PREVIOUS"</a>");
+				} else if (strcmp(a, "BODY") == 0
+				    && cb != NULL)
+					cb(data);
 			}
 		}
 		hputs(a);

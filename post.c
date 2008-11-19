@@ -31,7 +31,8 @@ static char rcsid[] = "$Id$";
 
 #include "common.h"
 
-void render_page(char *, char *);
+void render_article(char *);
+void render_page(page_cb, char *);
 
 #define INPUT_JAM1	"jam1="
 #define INPUT_JAM2	"jam2="
@@ -185,7 +186,7 @@ write_comment(char *aname, struct cform *f)
 	return;
 err:
 	f->error = ERR_CFORM_WRITE;
-	render_page(aname, NULL);
+	render_page(render_article, aname);
 }
 
 void
@@ -254,5 +255,5 @@ post_comment(char *aname)
 		write_comment(aname, &comment_form);
 		return;
 	}
-out:	render_page(aname, NULL);
+out:	render_page(render_article, aname);
 }

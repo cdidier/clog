@@ -30,7 +30,9 @@ static char rcsid[] = "$Id$";
 
 #include "common.h"
 
-void render_page(char *, char *);
+void render_error(char *);
+void render_article(char *);
+void render_page(page_cb, char *);
 void render_rss(void);
 void post_comment(char *);
 
@@ -107,20 +109,19 @@ main(int argc, char **argv)
 			if (strcmp(getenv("REQUEST_METHOD"), "POST") == 0)
 				post_comment(p);
 			else
-				render_page(p, NULL);
-		}
-		else if (strncmp(p, "tag/", 4) == 0) {
+				render_page(render_article, p);
+		} else if (strncmp(p, "tag/", 4) == 0) {
 			if (p[4] != '\0')
 				tag = p+4;
-			render_page(NULL, NULL);
+			render_page(render_article, NULL);
 		} else if (strncmp(p, "rss", 3) == 0) {
 			if (p[3] == '/' && p[4] != '\0')
 				tag = p+4;
 			render_rss();
 		} else
-			render_page(NULL, "Unknow request!");
+			render_page(render_error, ERR_PAGE_UNKNOWN);
 	} else
-		render_page(NULL, NULL);
+		render_page(render_article, NULL);
 	if (gz != NULL)
 		gzclose(gz);
 	else
