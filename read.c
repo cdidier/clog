@@ -113,7 +113,7 @@ out:	fts_close(fts);
 }
 
 uint
-read_tags(char *aname, tag_cb cb)
+read_article_tags(char *aname, article_tag_cb cb)
 {
 	FTS *fts, *fts2;
 	FTSENT *e, *e2;
@@ -243,5 +243,53 @@ read_articles(article_cb cb)
 		if (!look_like_an_article(e))
 	    		continue;
 		read_article(e->fts_name, cb, NULL, 0);
+	}
+out:	fts_close(fts);	
+}
+
+void
+read_tags(tag_cb cb)
+{
+	FTS *fts, *fts2;
+	FTSENT *e, *e2;
+	char * const path_argv[] = { TAGS_DIR, NULL };
+	char path[MAXPATHLEN];
+	char * const path2_argv[] = { path, NULL };
+	uint nb;
+
+	if ((fts = fts_open(path_argv, FTS_LOGICAL|FTS_NOSTAT,
+	    compar_name_asc)) == NULL) {
+		warn("fts_open: "TAGS_DIR);
+		return;
+	} else if ((e = fts_read(fts)) == NULL || !(e->fts_info & FTS_D)) {
+		if (errno != ENOENT)
+			warn("fts_read: "TAGS_DIR);
+		goto out;
+	} else if ((e = fts_children(fts, FTS_NAMEONLY)) == NULL) {
+		warn("fts_children: "TAGS_DIR);
+		goto out;
+	}
+	for (; e != NULL; e = e->fts_link) {
+		snprintf(path, MAXPATHLEN, "%s/%s", e->fts_accpath,
+		    e->fts_name);
+		if ((fts2 = fts_open(path2_argv, FTS_LOGICAL|FTS_NOSTAT,
+		    compar_name_asc)) == NULL) {
+			warn("fts_open: %s", path);
+			continue;
+		} else if ((e2 = fts_read(fts2)) == NULL
+		    || !(e2->fts_info & FTS_D)) {
+			if (errno != ENOENT)
+				warn("fts_read: %s", path);
+			goto out2;
+		} else if ((e2 = fts_children(fts2, FTS_NAMEONLY)) == NULL) {
+			warn("fts_children: %s", path);
+			goto out2;
+		}
+		for (nb = 0; e2 != NULL; e2 = e2->fts_link)
+				++nb;
+		if (cb != NULL)
+			cb(e->fts_name, nb);
+out2:		fts_close(fts2);
+	}
 out:	fts_close(fts);	
 }

@@ -32,6 +32,7 @@ static char rcsid[] = "$Id$";
 
 void render_error(char *);
 void render_article(char *);
+void render_tags(char *);
 void render_page(page_cb, char *);
 void render_rss(void);
 void post_comment(char *);
@@ -114,6 +115,8 @@ main(int argc, char **argv)
 			if (p[4] != '\0')
 				tag = p+4;
 			render_page(render_article, NULL);
+		} else if (strcmp(p, "tags") == 0) {
+			render_page(render_tags, NULL);
 		} else if (strncmp(p, "rss", 3) == 0) {
 			if (p[3] == '/' && p[4] != '\0')
 				tag = p+4;

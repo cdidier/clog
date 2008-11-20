@@ -12,6 +12,8 @@
 #define TAGS_DIR	DATA_DIR "/tags"
 
 #define NB_ARTICLES	5
+#define TAG_CLOUD_THRES	10
+
 #define TIME_FORMAT	"%Y-%m-%d %R"
 #define TIME_LENGTH	16
 

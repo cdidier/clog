@@ -21,8 +21,9 @@
 
 typedef void (page_cb)(char *);
 typedef void (article_cb)(char *, char *, struct tm *, FILE *, uint);
+typedef void (article_tag_cb)(char *);
 typedef void (comment_cb)(char *, struct tm *, char *, char *, char *, FILE *);
-typedef void (tag_cb)(char *);
+typedef void (tag_cb)(char *, uint);
 
 struct cform {
 	char	*name;

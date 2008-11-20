@@ -31,7 +31,8 @@ static char rcsid[] = "$Id$";
 uint	read_comments(char *, comment_cb);
 int	read_article(char *, article_cb, char *, size_t);
 void	read_articles(article_cb);
-uint	read_tags(char *, tag_cb);
+uint	read_article_tags(char *, article_tag_cb);
+void	read_tags(tag_cb);
 
 #define TAG "%%"
 
@@ -131,16 +132,14 @@ render_error(char *msg)
 }
 
 static void
-render_tag(char *tag)
+render_article_tag(char *tag)
 {
 	if (tag == NULL)
 		hputs("none");
 	else {
-		hputs("<a href=");
-		hputs(BASE_URL);
-		hputs("/tag/");
+		hputs("<a href=\""BASE_URL"/tag/");
 		hputs(tag);
-		hputc('>');
+		hputs("\">");
 		hputs(tag);
 		hputs("</a> ");
 	}
@@ -287,7 +286,8 @@ render_article_content(char *aname, char *title, struct tm *tm, FILE *fbody,
 					    TIME_FORMAT, tm);
 					hputs(date);
 				} else if (strcmp(a, "TAGS") == 0) {
-					read_tags(aname, render_tag);
+					read_article_tags(aname,
+					    render_article_tag);
 				} else if (strcmp(a, "BODY") == 0) {
 					while (fgets(body, BUFSIZ,
 					    fbody) != NULL)
@@ -329,6 +329,46 @@ render_article(char *aname)
 		else
 			render_comments(aname);
 	}
+}
+
+static void
+render_tag(char *tag, uint nb_articles)
+{
+	hputs("<span style=\"font-size: ");
+	hputd(nb_articles*TAG_CLOUD_THRES+100);
+	hputs("%\"><a href=\""BASE_URL"/tag/");
+	hputs(tag);
+	hputs("\">");
+	hputs(tag);
+	hputs("</a></span> ");
+}
+
+void
+render_tags(char *nop)
+{
+	FILE *fin;
+	char buf[BUFSIZ], *a, *b;
+
+	if ((fin = fopen(TEMPLATES_DIR"/tags.html", "r")) == NULL) {
+		warn("fopen: %s", TEMPLATES_DIR"/error.html");
+		return;
+	}
+	while (fgets(buf, BUFSIZ, fin) != NULL) {
+		buf[strcspn(buf, "\n")] = '\0';
+		for (a = buf; (b = strstr(a, TAG)) != NULL; a = b+2) {
+			*b = '\0';
+			hputs(a);
+			a = b+2;
+			if ((b = strstr(a, TAG)) != NULL) {
+				*b = '\0';
+				if (strcmp(a, "TAGS") == 0)
+					read_tags(render_tag);
+			}
+		}
+		hputs(a);
+		hputc('\n');
+	}
+	fclose(fin);
 }
 
 void
@@ -387,7 +427,8 @@ render_page(page_cb cb, char *data)
 							hputs("- ");
 							hputs(title);
 						}
-					}
+					} else if (cb == render_tags)
+						hputs("- tags");
 				} else if (strcmp(a, "NEXT") == 0
 				    && cb == render_article) {
 					if (offset > 1) {
@@ -419,7 +460,7 @@ render_page(page_cb cb, char *data)
 
 static void
 render_rss_article(char *aname, char *title, struct tm *tm, FILE *fbody,
-    uint nb_comments)
+    uint nop)
 {
 	char body[BUFSIZ], date[RSS_DATE_LENGTH];
 	struct timezone tz;
