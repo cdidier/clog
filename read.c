@@ -49,6 +49,7 @@ read_comment(char *aname, char *cname, comment_cb cb)
 	memset(&tm, 0, sizeof(struct tm));
 	if (strptime(cname, FILE_FORMAT, &tm) == NULL)
 		return;
+	mktime(&tm);
 	*author = *ip = *mail = *web = '\0';
 	while (fgets(buf, BUFSIZ, fin) != NULL && *buf != '\n') {
 		buf[strcspn(buf, "\n")] = '\0';
@@ -176,6 +177,7 @@ read_article(char *aname, article_cb cb, char *atitle, size_t atitle_len)
 	memset(&tm, 0, sizeof(struct tm));
 	if (strptime(aname, FILE_FORMAT, &tm) == NULL)
 		return -1;
+	mktime(&tm);
 	snprintf(path, MAXPATHLEN, ARTICLES_DIR"/%s/article", aname);
 	if ((fin = fopen(path, "r")) == NULL) {
 		if (errno != ENOENT)
