@@ -174,6 +174,32 @@ render_article_tag(char *tag)
 	}
 }
 
+static int
+render_generic_markers(char *a)
+{ 
+	extern char *tag;
+
+	if (strcmp(a, "BASE_URL") == 0)
+		hputs(BASE_URL);
+	else if (strcmp(a, "SITE_NAME") == 0)
+		hputs(SITE_NAME);
+	else if (strcmp(a, "DESCRIPTION") == 0)
+		hputs(DESCRIPTION);
+	else if (strcmp(a, "COPYRIGHT") == 0)
+		hputs(COPYRIGHT);
+	else if (strcmp(a, "CHARSET") == 0)
+		hputs(CHARSET);
+	else if (strcmp(a, "RSS") == 0) {
+		hputs(BASE_URL"/rss");
+		if (tag != NULL) {
+			hputc('/');
+			hputs(tag);
+		}
+	} else
+		return 0;
+	return 1;
+}
+
 static void
 render_comment(char *author, struct tm *tm, char *ip, char *mail, char *web,
     FILE *fbody)
@@ -194,7 +220,8 @@ render_comment(char *author, struct tm *tm, char *ip, char *mail, char *web,
 			a = b+2;
 			if ((b = strstr(a, TAG)) != NULL) {
 				*b = '\0';
-				if (strcmp(a, "NAME") == 0)
+				if (render_generic_markers(a));
+				else if (strcmp(a, "NAME") == 0)
 					hput_escaped(author);
 				else if (strcmp(a, "DATE") == 0) {
 					strftime(date, TIME_LENGTH+1,
@@ -248,7 +275,8 @@ render_comments(char *name)
 			a = b+2;
 			if ((b = strstr(a, TAG)) != NULL) {
 				*b = '\0';
-				if (strcmp(a, "JAM1_ORIG") == 0) {
+				if (render_generic_markers(a));
+				else if (strcmp(a, "JAM1_ORIG") == 0) {
 					hputs(JAM1_PREPEND);
 					hputd(jam1);
 				} else if (strcmp(a, "JAM2_ORIG") == 0) {
@@ -308,7 +336,8 @@ render_article_content(char *aname, char *title, struct tm *tm, FILE *fbody,
 			a = b+2;
 			if ((b = strstr(a, TAG)) != NULL) {
 				*b = '\0';
-				if (strcmp(a, "TITLE") == 0) {
+				if (render_generic_markers(a));
+				else if (strcmp(a, "TITLE") == 0) {
 					hputs(title);	
 				} else if (strcmp(a, "DATE") == 0) {
 					strftime(date, TIME_LENGTH+1,
@@ -388,7 +417,8 @@ render_tags(char *nop)
 			a = b+2;
 			if ((b = strstr(a, TAG)) != NULL) {
 				*b = '\0';
-				if (strcmp(a, "TAGS") == 0)
+				if (render_generic_markers(a));
+				else if (strcmp(a, "TAGS") == 0)
 					read_tags(render_tag);
 			}
 		}
@@ -421,23 +451,8 @@ render_page(page_cb cb, char *data)
 			a = b+2;
 			if ((b = strstr(a, TAG)) != NULL) {
 				*b = '\0';
-				if (strcmp(a, "BASE_URL") == 0)
-					hputs(BASE_URL);
-				else if (strcmp(a, "SITE_NAME") == 0)
-					hputs(SITE_NAME);
-				else if (strcmp(a, "DESCRIPTION") == 0)
-					hputs(DESCRIPTION);
-				else if (strcmp(a, "COPYRIGHT") == 0)
-					hputs(COPYRIGHT);
-				else if (strcmp(a, "CHARSET") == 0)
-					hputs(CHARSET);
-				else if (strcmp(a, "RSS") == 0) {
-					hputs(BASE_URL"/rss");
-					if (tag != NULL) {
-						hputc('/');
-						hputs(tag);
-					}
-				} else if (strcmp(a, "TITLE") == 0) {
+				if (render_generic_markers(a));
+				else if (strcmp(a, "TITLE") == 0) {
 					if (cb == render_article
 					    && data == NULL) {
 						if (tag != NULL) {
