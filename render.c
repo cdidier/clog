@@ -497,7 +497,6 @@ render_rss_article(char *aname, char *title, struct tm *tm, FILE *fbody,
     uint nop)
 {
 	char body[BUFSIZ], date[RSS_DATE_LENGTH];
-	struct timezone tz;
 
 	hputs(
 	    "    <item>\n"
@@ -515,12 +514,10 @@ render_rss_article(char *aname, char *title, struct tm *tm, FILE *fbody,
 	hputs(
 	    "      </description>\n"
 	    "      <pubDate>");
-	gettimeofday(NULL, &tz);
-	tm->tm_gmtoff = (60*tz.tz_dsttime+tz.tz_minuteswest)*60;
 	strftime(date, RSS_DATE_LENGTH, RSS_DATE_FORMAT, tm);
 	hputs(date);
 	hputs("</pubDate>\n"
-	    "      <guid>");
+	    "      <guid isPermaLink=\"false\">");
 	hputs(aname);
 	hputs("</guid>\n"
 	    "    </item>\n");
@@ -531,15 +528,22 @@ render_rss(void)
 {
 	char date[RSS_DATE_LENGTH];
 	time_t now;
-	struct tm tm;
+	extern char *tag;
 
 	fputs("Content-type: application/rss+xml;charset="CHARSET"\r\n\r\n",
 	    stdout);
 	fflush(stdout);
 	hputs(
 	    "<?xml version=\"1.0\"?>\n"
-	    "<rss version=\"2.0\">\n"
+	    "<rss version=\"2.0\" xmlns:atom=\"http://www.w3.org/2005/Atom\">\n"
 	    "  <channel>\n"
+	    "    <atom:link href=\"");
+	hputs(BASE_URL"/rss");
+	if (tag != NULL) {
+		hputc('/');
+		hputs(tag);
+	}
+	hputs("\" rel=\"self\" type=\"application/rss+xml\" />\n"
 	    "    <title>");
 	hputs(SITE_NAME);
 	hputs("</title>\n"
@@ -551,8 +555,7 @@ render_rss(void)
 	hputs("</description>\n"
 	    "    <pubDate>");
 	time(&now);
-	localtime_r(&now, &tm);
-	strftime(date, RSS_DATE_LENGTH, RSS_DATE_FORMAT, &tm);
+	strftime(date, RSS_DATE_LENGTH, RSS_DATE_FORMAT, localtime(&now));
 	hputs(date);
 	hputs("</pubDate>\n");
 	read_articles(render_rss_article);
