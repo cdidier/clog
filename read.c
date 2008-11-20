@@ -230,7 +230,8 @@ read_articles(article_cb cb)
 		warn("fts_open: %s", path);
 		return;
 	} else if ((e = fts_read(fts)) == NULL || !(e->fts_info & FTS_D)) {
-		warn("fts_read: %s", path);
+		if (errno != ENOENT)
+			warn("fts_read: %s", path);
 		goto out;
 	} else if ((e = fts_children(fts, FTS_NAMEONLY)) == NULL) {
 		warn("fts_children: %s", path);
