@@ -521,8 +521,6 @@ render_rss_article(char *aname, char *title, struct tm *tm, FILE *fbody,
 	hputs(date);
 	hputs("</pubDate>\n"
 	    "      <guid>");
-	hputs(BASE_URL);
-	hputc('/');
 	hputs(aname);
 	hputs("</guid>\n"
 	    "    </item>\n");
