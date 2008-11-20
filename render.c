@@ -25,6 +25,8 @@ static char rcsid[] = "$Id$";
 #include <stdlib.h>
 #include <string.h>
 #include <zlib.h>
+#include <sys/types.h>
+#include <sha1.h>
 
 #include "common.h"
 
@@ -258,6 +260,7 @@ render_comments(char *name)
 	FILE *fin;
 	char buf[BUFSIZ], *a, *b;
 	int jam1, jam2;
+	char salt[sizeof(JAM_SALT)+1], hash[SHA1_DIGEST_STRING_LENGTH];
 	extern struct cform comment_form;
 
 	if ((fin = fopen(TEMPLATES_DIR"/comments.html", "r")) == NULL) {
@@ -267,6 +270,9 @@ render_comments(char *name)
 	srand(time(NULL));
 	jam1 = rand()%(JAM_MAX-JAM_MIN+1) + JAM_MIN;
 	jam2 = rand()%(JAM_MAX-JAM_MIN+1) + JAM_MIN;
+	strlcpy(salt+1, JAM_SALT, sizeof(JAM_SALT));
+	*salt = jam1+jam2;
+	SHA1Data(salt, sizeof(JAM_SALT), hash);
 	while (fgets(buf, BUFSIZ, fin) != NULL) {
 		buf[strcspn(buf, "\n")] = '\0';
 		for (a = buf; (b = strstr(a, TAG)) != NULL; a = b+2) {
@@ -276,13 +282,9 @@ render_comments(char *name)
 			if ((b = strstr(a, TAG)) != NULL) {
 				*b = '\0';
 				if (render_generic_markers(a));
-				else if (strcmp(a, "JAM1_ORIG") == 0) {
-					hputs(JAM1_PREPEND);
-					hputd(jam1);
-				} else if (strcmp(a, "JAM2_ORIG") == 0) {
-					hputs(JAM2_PREPEND);
-					hputd(jam2);
-				} else if (strcmp(a, "JAM1") == 0) {
+				else if (strcmp(a, "JAM_HASH") == 0)
+					hputs(hash);
+				else if (strcmp(a, "JAM1") == 0) {
 					hputs("&#");
 					hputd(jam1+48);
 					hputc(';');

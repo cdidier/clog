@@ -28,24 +28,25 @@ static char rcsid[] = "$Id$";
 #include <string.h>
 #include <sys/param.h>
 #include <sys/stat.h>
+#include <sys/types.h>
+#include <sha1.h>
 
 #include "common.h"
 
 void render_article(char *);
 void render_page(page_cb, char *);
 
-#define INPUT_JAM1	"jam1="
-#define INPUT_JAM2	"jam2="
 #define INPUT_JAM	"jam="
+#define INPUT_JAM_HASH	"jam_hash="
 #define INPUT_NAME	"name="
 #define INPUT_MAIL	"mail="
 #define INPUT_WEB	"web="
 #define INPUT_TEXT	"text="
 
-#define FIELDS_LEN sizeof(INPUT_JAM1)+sizeof(INPUT_JAM2)+sizeof(INPUT_JAM) \
+#define FIELDS_LEN sizeof(INPUT_JAM)+sizeof(INPUT_JAM_HASH) \
 	+sizeof(INPUT_NAME)+sizeof(INPUT_MAIL)+sizeof(INPUT_WEB) \
 	+sizeof(INPUT_TEXT)
-#define JAMS_LEN	18
+#define JAMS_LEN	SHA1_DIGEST_STRING_LENGTH+4
 #define INPUT_LEN	101
 #define INPUTS_LEN	3*INPUT_LEN
 #define TEXT_LEN	2048
@@ -83,32 +84,6 @@ strchomp(char *s)
 		++spaces;
 	for (i = 0; i < len-spaces+1; ++i)
 		s[i-spaces] = s[i];
-}
-
-static int
-verify_jam(const char *jam1, const char *jam2, const char *jam)
-{
-	const char *errstr;
-	int nb1, nb2, nb;
-	
-	if (jam1 == NULL || jam2 == NULL || jam == NULL || *jam == '\0'
-	    || strncmp(jam1, JAM1_PREPEND, sizeof(JAM1_PREPEND)-1) != 0
-	    || strncmp(jam2, JAM2_PREPEND, sizeof(JAM2_PREPEND)-1) != 0)
-		return 0;
-	jam1 += sizeof(JAM1_PREPEND)-1;
-	nb1 = strtonum(jam1, JAM_MIN, JAM_MAX, &errstr);
-	if (errstr != NULL)
-		return 0;
-	jam2 += sizeof(JAM1_PREPEND)-1;
-	nb2 = strtonum(jam2, JAM_MIN, JAM_MAX, &errstr);
-	if (errstr != NULL)
-		return 0;
-	nb = strtonum(jam, JAM_MIN, 2*JAM_MAX, &errstr);
-	if (errstr != NULL)
-		return 0;
-	if (nb1+nb2 != nb)
-		return 0;
-	return 1;
 }
 
 static void
@@ -189,13 +164,33 @@ err:
 	render_page(render_article, aname);
 }
 
+static int
+verify_jam(const char *jam, const char *hash)
+{
+	char salt[sizeof(JAM_SALT)+1], hash2[SHA1_DIGEST_STRING_LENGTH];
+	const char *errstr;
+	int nb;
+	
+	if (hash == NULL || strlen(hash) != SHA1_DIGEST_STRING_LENGTH-1)
+		return 0;
+	nb = strtonum(jam, JAM_MIN, 2*JAM_MAX, &errstr);
+	if (errstr != NULL)
+		return 0;
+	strlcpy(salt+1, JAM_SALT, sizeof(JAM_SALT));
+	*salt = nb;
+	SHA1Data(salt, sizeof(JAM_SALT), hash2);
+	if (strcmp(hash, hash2) != 0)
+		return 0;
+	return 1;
+}
+
 void
 post_comment(char *aname)
 {
 	char buf[MAX_INPUT_LEN];
 	size_t len;
 	const char *errstr;
-	char *s, *sep, *jam1, *jam2, *jam, *nl;
+	char *s, *sep, *jam, *jam_hash, *nl;
 	extern struct cform comment_form;
 
 	len = strtonum(getenv("CONTENT_LENGTH"), 0, LONG_MAX, &errstr);
@@ -212,18 +207,17 @@ post_comment(char *aname)
 		goto out;
 	}
 	buf[len] = '\0';
-	jam1 = jam2 = jam = NULL;
+	jam = jam_hash = NULL;
 	for (s = buf; s != NULL && *s != '\0'; s = sep) {
 		if ((sep = strchr(s, '&')) != NULL)
 			*sep++ = '\0';
 		strchomp(s);
 		url_decode(s);
-		if (strncmp(s, INPUT_JAM1, sizeof(INPUT_JAM1)-1) == 0)
-			jam1 = s+sizeof(INPUT_JAM1)-1;
-		else if (strncmp(s, INPUT_JAM2, sizeof(INPUT_JAM2)-1) == 0)
-			jam2 = s+sizeof(INPUT_JAM2)-1;
-		else if (strncmp(s, INPUT_JAM, sizeof(INPUT_JAM)-1) == 0)
+		if (strncmp(s, INPUT_JAM, sizeof(INPUT_JAM)-1) == 0)
 			jam = s+sizeof(INPUT_JAM)-1;
+		else if (strncmp(s, INPUT_JAM_HASH,
+		    sizeof(INPUT_JAM_HASH)-1) == 0)
+			jam_hash = s+sizeof(INPUT_JAM_HASH)-1;
 		else if (strncmp(s, INPUT_NAME, sizeof(INPUT_NAME)-1) == 0) {
 			comment_form.name = s+sizeof(INPUT_NAME)-1;
 			comment_form.name[sizeof(INPUT_NAME)+INPUT_LEN]
@@ -249,7 +243,7 @@ post_comment(char *aname)
 		comment_form.error = ERR_CFORM_NAME;
 	else if (comment_form.text == NULL || *comment_form.text == '\0')
 		comment_form.error = ERR_CFORM_TEXT;
-	else if (!verify_jam(jam1, jam2, jam))
+	else if (!verify_jam(jam, jam_hash))
 		comment_form.error = ERR_CFORM_JAM;
 	else {
 		write_comment(aname, &comment_form);
