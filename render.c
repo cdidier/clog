@@ -103,6 +103,38 @@ hput_escaped(char *s)
 	hputs(a);
 }
 
+static void
+hput_link(char *first_level, char *second_level, char *text)
+{
+	hputs("<a href=\""BASE_URL);
+	if (first_level != NULL) {
+		if (*first_level != '?')
+			hputc('/');
+		hputs(first_level);
+		if (second_level != NULL) {
+			if (*second_level != '?')
+				hputc('/');
+			hputs(second_level);
+		}
+	}
+	hputs("\">");
+	hputs(text);
+	hputs("</a>");
+}
+
+static void
+hput_pagelink(long page, char *text)
+{
+	hputs("<a href=\""BASE_URL);
+	if (page > 0) {
+		hputs("?p=");
+		hputd(page);
+	}
+	hputs("\">");
+	hputs(text);
+	hputs("</a>");
+}
+
 void
 render_error(char *msg)
 {
@@ -137,11 +169,8 @@ render_article_tag(char *tag)
 	if (tag == NULL)
 		hputs("none");
 	else {
-		hputs("<a href=\""BASE_URL"/tag/");
-		hputs(tag);
-		hputs("\">");
-		hputs(tag);
-		hputs("</a> ");
+		hput_link("tag", tag, tag);
+		hputc(' ');
 	}
 }
 
@@ -336,11 +365,9 @@ render_tag(char *tag, uint nb_articles)
 {
 	hputs("<span style=\"font-size: ");
 	hputd(nb_articles*TAG_CLOUD_THRES+100);
-	hputs("%\"><a href=\""BASE_URL"/tag/");
-	hputs(tag);
-	hputs("\">");
-	hputs(tag);
-	hputs("</a></span> ");
+	hputs("%\">");
+	hput_link("tag", tag, tag);
+	hputs("</span> ");
 }
 
 void
@@ -430,20 +457,12 @@ render_page(page_cb cb, char *data)
 					} else if (cb == render_tags)
 						hputs("- tags");
 				} else if (strcmp(a, "NEXT") == 0
-				    && cb == render_article) {
-					if (offset > 1) {
-						hputs("<a href=\""BASE_URL
-						    "?p=");
-						hputd(offset-1);
-						hputs("\">"NAV_NEXT"</a>");
-					} else if (offset == 1)
-						hputs("<a href=\""BASE_URL
-						    "\">"NAV_NEXT"</a>");
-				} else if (strcmp(a, "PREVIOUS") == 0
+				    && cb == render_article
+				    && offset > 0)
+					hput_pagelink(offset-1, NAV_NEXT);
+				else if (strcmp(a, "PREVIOUS") == 0
 				    && nb_articles >= NB_ARTICLES) {
-					hputs("<a href=\""BASE_URL"?p=");
-					hputd(offset+1);
-					hputs("\">"NAV_PREVIOUS"</a>");
+					hput_pagelink(offset+1, NAV_PREVIOUS);
 				} else if (strcmp(a, "BODY") == 0
 				    && cb != NULL)
 					cb(data);
