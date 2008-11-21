@@ -3,14 +3,14 @@
 #define ENABLE_COMMENTS		1
 #define ENABLE_POST_COMMENT	1
 
-#define	BASE_URL	"http://cybione.org/~cdidier/log/src/blog.cgi"
+#define	BASE_URL	"http://cybione.org/~cdidier/log"
 #define SITE_NAME	"C'log"
 #define DESCRIPTION	"Colin's web journal."
-#define COPYRIGHT	"Copyright &#169; 2008 Colin Didier ; Tous droits réservés."
+#define COPYRIGHT	"Copyright &#169; 2008 Colin Didier; Tous droits réservés."
 #define CHARSET		"iso-8859-15"
 
-#define TEMPLATES_DIR	"/users/cdidier/log/src/templates"
-#define DATA_DIR	"/users/cdidier/log/src/data"
+#define TEMPLATES_DIR	"/users/cdidier/log/templates"
+#define DATA_DIR	"/users/cdidier/log/data"
 #define ARTICLES_DIR	DATA_DIR "/articles"
 #define TAGS_DIR	DATA_DIR "/tags"
 

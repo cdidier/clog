@@ -108,9 +108,12 @@ hput_escaped(char *s)
 }
 
 static void
-hput_link(char *first_level, char *second_level, char *text)
+hput_url(char *first_level, char *second_level)
 {
-	hputs("<a href=\""BASE_URL);
+	extern char *__progname;
+
+	hputs(BASE_URL"/");
+	hputs(__progname);
 	if (first_level != NULL) {
 		if (*first_level != '?')
 			hputc('/');
@@ -121,6 +124,13 @@ hput_link(char *first_level, char *second_level, char *text)
 			hputs(second_level);
 		}
 	}
+}
+
+static void
+hput_link(char *first_level, char *second_level, char *text)
+{
+	hputs("<a href=\"");
+	hput_url(first_level, second_level);
 	hputs("\">");
 	hputs(text);
 	hputs("</a>");
@@ -129,7 +139,8 @@ hput_link(char *first_level, char *second_level, char *text)
 static void
 hput_pagelink(long page, char *text)
 {
-	hputs("<a href=\""BASE_URL);
+	hputs("<a href=\"");
+	hput_url(NULL, NULL);
 	if (page > 0) {
 		hputs("?p=");
 		hputd(page);
@@ -184,7 +195,7 @@ render_generic_markers(char *a)
 	extern char *tag;
 
 	if (strcmp(a, "BASE_URL") == 0)
-		hputs(BASE_URL);
+		hput_url(NULL, NULL);
 	else if (strcmp(a, "SITE_NAME") == 0)
 		hputs(SITE_NAME);
 	else if (strcmp(a, "DESCRIPTION") == 0)
@@ -194,11 +205,7 @@ render_generic_markers(char *a)
 	else if (strcmp(a, "CHARSET") == 0)
 		hputs(CHARSET);
 	else if (strcmp(a, "RSS") == 0) {
-		hputs(BASE_URL"/rss");
-		if (tag != NULL) {
-			hputc('/');
-			hputs(tag);
-		}
+		hput_url("rss", tag);
 	} else
 		return 0;
 	return 1;
@@ -393,11 +400,9 @@ render_article_content(char *aname, char *title, struct tm *tm, FILE *fbody,
 					while (fgets(body, BUFSIZ,
 					    fbody) != NULL)
 						hputs(body);
-				} else if (strcmp(a, "URL") == 0) {
-					hputs(BASE_URL);
-					hputc('/');
-					hputs(aname);
-				} else if (strcmp(a, "NB_COMMENTS") == 0) {
+				} else if (strcmp(a, "URL") == 0)
+					hput_url(aname, NULL);
+				else if (strcmp(a, "NB_COMMENTS") == 0) {
 #if defined(ENABLE_COMMENTS) && ENABLE_COMMENTS == 1
 					switch (nb_comments) {
 					case 0:
@@ -551,9 +556,7 @@ render_rss_article(char *aname, char *title, struct tm *tm, FILE *fbody,
 	hputs(title);
 	hputs("</title>\n"
 	    "      <link>");
-	hputs(BASE_URL);
-	hputc('/');
-	hputs(aname);
+	hput_url(aname, NULL);
 	hputs("</link>\n"
 	    "      <description>");
 	while (fgets(body, BUFSIZ, fbody) != NULL)
@@ -585,17 +588,13 @@ render_rss(void)
 	    "<rss version=\"2.0\" xmlns:atom=\"http://www.w3.org/2005/Atom\">\n"
 	    "  <channel>\n"
 	    "    <atom:link href=\"");
-	hputs(BASE_URL"/rss");
-	if (tag != NULL) {
-		hputc('/');
-		hputs(tag);
-	}
+	hput_url("rss", tag);
 	hputs("\" rel=\"self\" type=\"application/rss+xml\" />\n"
 	    "    <title>");
 	hputs(SITE_NAME);
 	hputs("</title>\n"
 	    "    <link>");
-	hputs(BASE_URL);
+	hput_url(NULL, NULL);
 	hputs("</link>\n"
 	    "    <description>");
 	hputs(DESCRIPTION);
