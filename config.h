@@ -1,5 +1,7 @@
 /* $Id$ */
 
+#define ENABLE_COMMENTS	1
+
 #define	BASE_URL	"http://cybione.org/~cdidier/log/src/blog.cgi"
 #define SITE_NAME	"C'log"
 #define DESCRIPTION	"Colin's web journal."

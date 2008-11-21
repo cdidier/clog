@@ -31,6 +31,20 @@ static char rcsid[] = "$Id$";
 
 #include "common.h"
 
+static int
+compar_name_asc(const FTSENT **f1, const FTSENT **f2)
+{
+	return strcmp((*f1)->fts_name, (*f2)->fts_name);
+}
+
+static int
+compar_name_desc(const FTSENT **f1, const FTSENT **f2)
+{
+	return strcmp((*f2)->fts_name, (*f1)->fts_name);
+}
+
+#if defined(ENABLE_COMMENTS) && ENABLE_COMMENTS == 1
+
 static void
 read_comment(char *aname, char *cname, comment_cb cb)
 {
@@ -74,12 +88,6 @@ read_comment(char *aname, char *cname, comment_cb cb)
 	fclose(fin);
 }
 
-static int
-compar_name_asc(const FTSENT **f1, const FTSENT **f2)
-{
-	return strcmp((*f1)->fts_name, (*f2)->fts_name);
-}
-
 uint
 read_comments(char *aname, comment_cb cb)
 {
@@ -112,6 +120,8 @@ read_comments(char *aname, comment_cb cb)
 out:	fts_close(fts);	
 	return nb;
 }
+
+#endif /* ENABLE_COMMENTS */
 
 uint
 read_article_tags(char *aname, article_tag_cb cb)
@@ -193,7 +203,11 @@ read_article(char *aname, article_cb cb, char *atitle, size_t atitle_len)
 	if (atitle != NULL)
 		strlcpy(atitle, title, atitle_len);
 	if (cb != NULL)
+#if defined(ENABLE_COMMENTS) && ENABLE_COMMENTS == 1
 		cb(aname, title, &tm, fin, read_comments(aname, NULL));
+#else
+		cb(aname, title, &tm, fin, 0);
+#endif /* ENABLE_COMMENTS */
 	fclose(fin);
 	return 0;
 }
@@ -204,12 +218,6 @@ look_like_an_article(FTSENT *e)
 	return (e->fts_info & FTS_D) && e->fts_namelen >= FILE_MINLEN
 	    && (strncmp(e->fts_name, "20", 2) == 0
 	    || strncmp(e->fts_name, "19", 2) == 0);
-}
-
-static int
-compar_name_desc(const FTSENT **f1, const FTSENT **f2)
-{
-	return strcmp((*f2)->fts_name, (*f1)->fts_name);
 }
 
 void

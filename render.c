@@ -30,11 +30,13 @@ static char rcsid[] = "$Id$";
 
 #include "common.h"
 
-uint	read_comments(char *, comment_cb);
 int	read_article(char *, article_cb, char *, size_t);
 void	read_articles(article_cb);
 uint	read_article_tags(char *, article_tag_cb);
 void	read_tags(tag_cb);
+#if defined(ENABLE_COMMENTS) && ENABLE_COMMENTS == 1
+uint	read_comments(char *, comment_cb);
+#endif /* ENABLE_COMMENTS */
 
 #define TAG "%%"
 
@@ -202,6 +204,8 @@ render_generic_markers(char *a)
 	return 1;
 }
 
+#if defined(ENABLE_COMMENTS) && ENABLE_COMMENTS == 1
+
 static void
 render_comment(char *author, struct tm *tm, char *ip, char *mail, char *web,
     FILE *fbody)
@@ -318,6 +322,8 @@ render_comments(char *name)
 	fclose(fin);
 }
 
+#endif /* ENABLE_COMMENTS */
+
 static void
 render_article_content(char *aname, char *title, struct tm *tm, FILE *fbody,
     uint nb_comments)
@@ -357,6 +363,7 @@ render_article_content(char *aname, char *title, struct tm *tm, FILE *fbody,
 					hputc('/');
 					hputs(aname);
 				} else if (strcmp(a, "NB_COMMENTS") == 0) {
+#if defined(ENABLE_COMMENTS) && ENABLE_COMMENTS == 1
 					switch (nb_comments) {
 					case 0:
 						hputs("no comment");
@@ -368,6 +375,7 @@ render_article_content(char *aname, char *title, struct tm *tm, FILE *fbody,
 						hputd(nb_comments);
 						hputs(" comments");
 					}
+#endif /* ENABLE_COMMENTS */
 				}
 			}
 		}
@@ -386,8 +394,10 @@ render_article(char *aname)
 	else {
 		if (read_article(aname, render_article_content, NULL, 0) == -1)
 			render_error(ERR_PAGE_ARTICLE);
+#if defined(ENABLE_COMMENTS) && ENABLE_COMMENTS == 1
 		else
 			render_comments(aname);
+#endif /* ENABLE_COMMENTS */
 	}
 }
 

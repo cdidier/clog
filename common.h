@@ -22,8 +22,10 @@
 typedef void (page_cb)(char *);
 typedef void (article_cb)(char *, char *, struct tm *, FILE *, uint);
 typedef void (article_tag_cb)(char *);
-typedef void (comment_cb)(char *, struct tm *, char *, char *, char *, FILE *);
 typedef void (tag_cb)(char *, uint);
+#if defined(ENABLE_COMMENTS) && ENABLE_COMMENTS == 1
+typedef void (comment_cb)(char *, struct tm *, char *, char *, char *, FILE *);
+#endif /* ENABLE_COMMENTS */
 
 struct cform {
 	char	*name;

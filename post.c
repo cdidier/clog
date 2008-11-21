@@ -36,6 +36,8 @@ static char rcsid[] = "$Id$";
 void render_article(char *);
 void render_page(page_cb, char *);
 
+#if defined(ENABLE_COMMENTS) && ENABLE_COMMENTS == 1
+
 #define INPUT_JAM	"jam="
 #define INPUT_JAM_HASH	"jam_hash="
 #define INPUT_NAME	"name="
@@ -251,3 +253,5 @@ post_comment(char *aname)
 	}
 out:	render_page(render_article, aname);
 }
+
+#endif /* ENABLE_COMMENTS */
