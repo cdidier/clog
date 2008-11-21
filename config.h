@@ -2,12 +2,17 @@
 
 #define ENABLE_COMMENTS		1
 #define ENABLE_POST_COMMENT	1
+#define ENABLE_STATIC		0
 
 #define	BASE_URL	"http://cybione.org/~cdidier/log"
 #define SITE_NAME	"C'log"
 #define DESCRIPTION	"Colin's web journal."
 #define COPYRIGHT	"Copyright &#169; 2008 Colin Didier; Tous droits réservés."
 #define CHARSET		"iso-8859-15"
+
+#if defined(ENABLE_STATIC) && ENABLE_STATIC == 1
+#define STATIC_EXTENSION	".html"
+#endif /* ENABLE_STATIC */
 
 #define TEMPLATES_DIR	"/users/cdidier/log/templates"
 #define DATA_DIR	"/users/cdidier/log/data"

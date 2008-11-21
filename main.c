@@ -40,7 +40,10 @@ void post_comment(char *);
 gzFile	 gz;
 char	*tag;
 long	 offset;
+#if defined(ENABLE_COMMENTS) && ENABLE_COMMENTS == 1 \
+    && defined(ENABLE_POST_COMMENT) && ENABLE_POST_COMMENT == 1
 struct cform	comment_form;
+#endif /* ENABLE_COMMENTS */
 
 static char *
 get_params(void)
@@ -94,6 +97,23 @@ enable_gzip(void)
 		fputs("Content-Encoding: gzip\r\n", stdout);
 }
 
+void
+redirect(char *aname)
+{
+	extern char *__progname;
+	fputs("Status: 302\r\nLocation: "BASE_URL"/", stdout);
+	fputs(__progname, stdout);
+	if (aname != NULL) {
+		fputc('/', stdout);
+		fputs(aname, stdout);
+#if defined(ENABLE_STATIC) && ENABLE_STATIC == 1
+		fputs(STATIC_EXTENSION, stdout);
+#endif /* ENABLE_STATIC */
+	}
+	fputs("\r\n\r\n", stdout);
+	fflush(stdout);
+}
+
 int
 main(int argc, char **argv)
 {
@@ -102,7 +122,10 @@ main(int argc, char **argv)
 	gz = NULL;
 	tag = NULL;
 	offset = 0;
+#if defined(ENABLE_COMMENTS) && ENABLE_COMMENTS == 1 \
+    && defined(ENABLE_POST_COMMENT) && ENABLE_POST_COMMENT == 1
 	memset(&comment_form, 0, sizeof(struct cform));
+#endif /* ENABLE_COMMENTS */
 	enable_gzip();
 	parse_query();
 	if ((p = get_params()) != NULL) {

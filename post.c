@@ -35,6 +35,7 @@ static char rcsid[] = "$Id$";
 
 void render_article(char *);
 void render_page(page_cb, char *);
+void redirect(char *);
 
 #if defined(ENABLE_COMMENTS) && ENABLE_COMMENTS == 1 \
     && defined(ENABLE_POST_COMMENT) && ENABLE_POST_COMMENT == 1
@@ -87,21 +88,6 @@ strchomp(char *s)
 		++spaces;
 	for (i = 0; i < len-spaces+1; ++i)
 		s[i-spaces] = s[i];
-}
-
-static void
-redirect(char *aname)
-{
-	extern char *__progname;
-
-	fputs("Status: 302\r\nLocation: "BASE_URL"/", stdout);
-	fputs(__progname, stdout);
-	if (aname != NULL) {
-		fputc('/', stdout);
-		fputs(aname, stdout);
-	}
-	fputs("\r\n\r\n", stdout);
-	fflush(stdout);
 }
 
 static int

@@ -110,19 +110,36 @@ hput_escaped(char *s)
 static void
 hput_url(char *first_level, char *second_level)
 {
+#if defined(ENABLE_STATIC) && ENABLE_STATIC == 1
+	hputs(BASE_URL);
+#else
 	extern char *__progname;
 
 	hputs(BASE_URL"/");
 	hputs(__progname);
+#endif /* ENABLE_STATIC */
 	if (first_level != NULL) {
-		if (*first_level != '?')
-			hputc('/');
+		hputc('/');
 		hputs(first_level);
 		if (second_level != NULL) {
-			if (*second_level != '?')
-				hputc('/');
+#if defined(ENABLE_STATIC) && ENABLE_STATIC == 1
+			hputc('_');
+#else
+			hputc('/');
+#endif /* ENABLE_STATIC */
 			hputs(second_level);
+#if defined(ENABLE_STATIC) && ENABLE_STATIC == 1
+			if (strcmp(first_level, "rss") == 0)
+				hputs(".xml");
+			else
+				hputs(STATIC_EXTENSION);
+		} else if (strcmp(first_level, "rss") == 0)
+			hputs(".xml");
+		else
+			hputs(STATIC_EXTENSION);
+#else
 		}
+#endif /* ENABLE_STATIC */
 	}
 }
 
@@ -139,12 +156,35 @@ hput_link(char *first_level, char *second_level, char *text)
 static void
 hput_pagelink(long page, char *text)
 {
+	extern char *tag;
+
 	hputs("<a href=\"");
+#if defined(ENABLE_STATIC) && ENABLE_STATIC == 1
 	hput_url(NULL, NULL);
+	if (page > 0) {
+		if (tag != NULL) {
+			hputs("tag_");
+			hputs(tag);
+		} else
+			hputs("index");
+		hputc('_');
+		hputd(page);
+		hputs(STATIC_EXTENSION);
+	} else if (tag != NULL) {
+		hputs("tag_");
+		hputs(tag);
+		hputs(STATIC_EXTENSION);
+	}
+#else
+	if (tag != NULL)
+		hput_url("tag", tag);
+	else
+		hput_url(NULL, NULL);
 	if (page > 0) {
 		hputs("?p=");
 		hputd(page);
 	}
+#endif /* ENABLE_STATIC */
 	hputs("\">");
 	hputs(text);
 	hputs("</a>");
@@ -268,13 +308,14 @@ render_comment(char *author, struct tm *tm, char *ip, char *mail, char *web,
 #if defined(ENABLE_POST_COMMENT) && ENABLE_POST_COMMENT == 1
 
 static void
-render_comment_form(void)
+render_comment_form(char *aname)
 {
 	FILE *fin;
 	char buf[BUFSIZ], *a, *b;
 	int jam1, jam2;
 	char salt[sizeof(JAM_SALT)+1], hash[SHA1_DIGEST_STRING_LENGTH];
 	extern struct cform comment_form;
+	extern char *__progname;
 
 	if ((fin = fopen(TEMPLATES_DIR"/comment_form.html", "r")) == NULL) {
 		warn("fopen: %s", TEMPLATES_DIR"/comment_form.html");
@@ -295,7 +336,12 @@ render_comment_form(void)
 			if ((b = strstr(a, TAG)) != NULL) {
 				*b = '\0';
 				if (render_generic_markers(a));
-				else if (strcmp(a, "JAM_HASH") == 0)
+				else if (strcmp(a, "POST_URL") == 0) {
+					hputs(BASE_URL"/");
+					hputs(__progname);
+					hputc('/');
+					hputs(aname);
+				} else if (strcmp(a, "JAM_HASH") == 0)
 					hputs(hash);
 				else if (strcmp(a, "JAM1") == 0) {
 					hputs("&#");
@@ -331,7 +377,7 @@ render_comment_form(void)
 #endif /* ENABLE_POST_COMMENT */
 
 static void
-render_comments(char *name)
+render_comments(char *aname)
 {
 	FILE *fin;
 	char buf[BUFSIZ], *a, *b;
@@ -350,11 +396,11 @@ render_comments(char *name)
 				*b = '\0';
 				if (render_generic_markers(a));
 				else if (strcmp(a, "COMMENTS") == 0)
-					read_comments(name,
+					read_comments(aname,
 					    render_comment);
 #if defined(ENABLE_POST_COMMENT) && ENABLE_POST_COMMENT == 1
 				else if (strcmp(a, "COMMENT_FORM") == 0)
-					render_comment_form();
+					render_comment_form(aname);
 #endif /* ENABLE_POST_COMMENT */
 			}
 		}
