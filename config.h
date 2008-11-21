@@ -19,5 +19,4 @@
 
 #define JAM_MIN		0
 #define	JAM_MAX		9
-#define JAM1_PREPEND	"jam1is"
-#define JAM2_PREPEND	"jam2is"
+#define JAM_SALT	"ec4fec4358fab0886f04fbadeea18fb77f4359e8"
