@@ -92,9 +92,14 @@ strchomp(char *s)
 static void
 redirect(char *aname)
 {
+	extern char *__progname;
+
 	fputs("Status: 302\r\nLocation: "BASE_URL"/", stdout);
-	if (aname != NULL)
+	fputs(__progname, stdout);
+	if (aname != NULL) {
+		fputc('/', stdout);
 		fputs(aname, stdout);
+	}
 	fputs("\r\n\r\n", stdout);
 	fflush(stdout);
 }
