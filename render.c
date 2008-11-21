@@ -258,8 +258,10 @@ render_comment(char *author, struct tm *tm, char *ip, char *mail, char *web,
 	fclose(fin);
 }
 
+#if defined(ENABLE_POST_COMMENT) && ENABLE_POST_COMMENT == 1
+
 static void
-render_comments(char *name)
+render_comment_form(void)
 {
 	FILE *fin;
 	char buf[BUFSIZ], *a, *b;
@@ -267,8 +269,8 @@ render_comments(char *name)
 	char salt[sizeof(JAM_SALT)+1], hash[SHA1_DIGEST_STRING_LENGTH];
 	extern struct cform comment_form;
 
-	if ((fin = fopen(TEMPLATES_DIR"/comments.html", "r")) == NULL) {
-		warn("fopen: %s", TEMPLATES_DIR"/comments.html");
+	if ((fin = fopen(TEMPLATES_DIR"/comment_form.html", "r")) == NULL) {
+		warn("fopen: %s", TEMPLATES_DIR"/comment_form.html");
 		return;
 	}
 	srand(time(NULL));
@@ -311,9 +313,42 @@ render_comments(char *name)
 				else if (comment_form.error != NULL
 				    && strcmp(a, "FORM_ERROR") == 0)
 					hputs(comment_form.error);
+			}
+		}
+		hputs(a);
+		hputc('\n');
+	}
+	fclose(fin);
+}
+
+#endif /* ENABLE_POST_COMMENT */
+
+static void
+render_comments(char *name)
+{
+	FILE *fin;
+	char buf[BUFSIZ], *a, *b;
+
+	if ((fin = fopen(TEMPLATES_DIR"/comments.html", "r")) == NULL) {
+		warn("fopen: %s", TEMPLATES_DIR"/comments.html");
+		return;
+	}
+	while (fgets(buf, BUFSIZ, fin) != NULL) {
+		buf[strcspn(buf, "\n")] = '\0';
+		for (a = buf; (b = strstr(a, TAG)) != NULL; a = b+2) {
+			*b = '\0';
+			hputs(a);
+			a = b+2;
+			if ((b = strstr(a, TAG)) != NULL) {
+				*b = '\0';
+				if (render_generic_markers(a));
 				else if (strcmp(a, "COMMENTS") == 0)
 					read_comments(name,
 					    render_comment);
+#if defined(ENABLE_POST_COMMENT) && ENABLE_POST_COMMENT == 1
+				else if (strcmp(a, "COMMENT_FORM") == 0)
+					render_comment_form();
+#endif /* ENABLE_POST_COMMENT */
 			}
 		}
 		hputs(a);

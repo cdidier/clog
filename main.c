@@ -107,7 +107,8 @@ main(int argc, char **argv)
 	parse_query();
 	if ((p = get_params()) != NULL) {
 		if (strncmp(p, "20", 2) == 0 || strncmp(p, "19", 2) == 0) {
-#if defined(ENABLE_COMMENTS) && ENABLE_COMMENTS == 1
+#if defined(ENABLE_COMMENTS) && ENABLE_COMMENTS == 1 \
+    && defined(ENABLE_POST_COMMENT) && ENABLE_POST_COMMENT == 1
 			if (strcmp(getenv("REQUEST_METHOD"), "POST") == 0)
 				post_comment(p);
 			else

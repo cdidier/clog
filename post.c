@@ -36,7 +36,8 @@ static char rcsid[] = "$Id$";
 void render_article(char *);
 void render_page(page_cb, char *);
 
-#if defined(ENABLE_COMMENTS) && ENABLE_COMMENTS == 1
+#if defined(ENABLE_COMMENTS) && ENABLE_COMMENTS == 1 \
+    && defined(ENABLE_POST_COMMENT) && ENABLE_POST_COMMENT == 1
 
 #define INPUT_JAM	"jam="
 #define INPUT_JAM_HASH	"jam_hash="

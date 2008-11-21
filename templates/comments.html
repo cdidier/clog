@@ -1,45 +1,5 @@
 
 <div class="comments">
 	%%COMMENTS%%
-	<hr>
-	<a name="com"></a>
-	<div class="comment">
-		<div class="info">
-			<script type="text/javascript">
-				function toggle_visibility(eid) {
-					e = document.getElementById(eid);
-					if (e.style.visibility == 'hidden') {
-						e.style.visibility = 'visible';
-						e.style.display = 'block';
-					} else {
-						e.style.visibility = 'hidden';
-						e.style.display = 'none';
-					}
-				}
-			</script>
-			<a href="#com" onClick="javascript:toggle_visibility('com');">Comment!</a>
-			<p><b>%%FORM_ERROR%%</b></p>
-			<form name="comment_form" method="post" action="">
-				<div id="com">
-					<input type="hidden" name="jam_hash" value="%%JAM_HASH%%">
-					<table>
-						<tr><td><b>Name:</b></td><td><input type="text" name="name" maxlength="50" value="%%FORM_NAME%%"></td></tr>
-						<tr><td>Email:</td><td><input type="text" name="mail" maxlength="50" value="%%FORM_MAIL%%"></td></tr>
-						<tr><td>Website:</td><td><input type="text" name="web" maxlength="50" value="%%FORM_WEB%%"></td></tr>
-						<tr><td><b>%%JAM1%%&nbsp;&#43;&nbsp;%%JAM2%%&nbsp;&#61;</b></td><td><input type="text" name="jam" size="3" maxlength="2"></td></tr>
-					</table>
-					<b>Comment:</b><br>
-					<textarea name="text" rows="7" cols="80">%%FORM_TEXT%%</textarea><br>
-					<input type="submit" value="Submit">
-				</div>
-			</form>
-			<script type="text/javascript">
-				if (document.comment_form.name.value == ""
-				    && document.comment_form.mail.value == ""
-				    && document.comment_form.web.value == ""
-				    && document.comment_form.text.value == "")
-					toggle_visibility('com');
-			</script>
-		</div>
-	</div>
+	%%COMMENT_FORM%%
 </div>
