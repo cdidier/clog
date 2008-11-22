@@ -34,14 +34,23 @@ int	read_article(char *, article_cb, char *, size_t);
 void	read_articles(article_cb);
 uint	read_article_tags(char *, article_tag_cb);
 void	read_tags(tag_cb);
-#if defined(ENABLE_COMMENTS) && ENABLE_COMMENTS == 1
+
+#ifdef ENABLE_COMMENTS
 uint	read_comments(char *, comment_cb);
 #endif /* ENABLE_COMMENTS */
 
+#ifdef ENABLE_STATIC
+void	add_static_tag(char *, long);
+void	add_static_article(char *);
+
+extern int from_cmd;
+#endif /* ENABLE_STATIC */
+
 #define TAG "%%"
 
-static uint	nb_articles;
-extern gzFile	gz;
+static uint	 nb_articles;
+extern gzFile	 gz;
+extern FILE	*hout;
 
 static void
 hputc(const char c)
@@ -49,7 +58,7 @@ hputc(const char c)
 	if (gz != NULL)
 		gzputc(gz, c);
 	else
-		fputc(c, stdout);
+		fputc(c, hout);
 }
 
 static void
@@ -58,7 +67,7 @@ hputs(const char *s)
 	if (gz != NULL)
 		gzputs(gz, s);
 	else
-		fputs(s, stdout);
+		fputs(s, hout);
 }
 
 static void
@@ -67,7 +76,7 @@ hputd(const long long l)
 	if (gz != NULL)
 		gzprintf(gz, "%lld", l);
 	else
-		fprintf(stdout, "%lld", l);
+		fprintf(hout, "%lld", l);
 }
 
 static void
@@ -110,74 +119,73 @@ hput_escaped(char *s)
 static void
 hput_url(char *first_level, char *second_level)
 {
-#if defined(ENABLE_STATIC) && ENABLE_STATIC == 1
+#ifdef ENABLE_STATIC
 	hputs(BASE_URL);
 #else
 	extern char *__progname;
 
-	hputs(BASE_URL"/");
+	hputs(BASE_URL);
 	hputs(__progname);
 #endif /* ENABLE_STATIC */
 	if (first_level != NULL) {
+#ifdef ENABLE_STATIC
+	if (!from_cmd)
 		hputc('/');
+#else
+	hputc('/');
+#endif /* ENABLE_STATIC */
 		hputs(first_level);
 		if (second_level != NULL) {
-#if defined(ENABLE_STATIC) && ENABLE_STATIC == 1
+#ifdef ENABLE_STATIC
 			hputc('_');
 #else
 			hputc('/');
 #endif /* ENABLE_STATIC */
 			hputs(second_level);
-#if defined(ENABLE_STATIC) && ENABLE_STATIC == 1
+#ifdef ENABLE_STATIC
 			if (strcmp(first_level, "rss") == 0)
 				hputs(".xml");
 			else
-				hputs(STATIC_EXTENSION);
+				hputs(".html");
 		} else if (strcmp(first_level, "rss") == 0)
 			hputs(".xml");
 		else
-			hputs(STATIC_EXTENSION);
+			hputs(".html");
 #else
 		}
 #endif /* ENABLE_STATIC */
 	}
+#ifdef ENABLE_STATIC
+	if (first_level != NULL && second_level == NULL
+	    && (strncmp(first_level, "20", 2) == 0
+	    || strncmp(first_level, "19", 2) == 0))
+		add_static_article(first_level);
+#endif /* ENABLE_STATIC */
 }
 
 static void
-hput_link(char *first_level, char *second_level, char *text)
+hput_pagelink(char *tname, long page, char *text)
 {
 	hputs("<a href=\"");
-	hput_url(first_level, second_level);
-	hputs("\">");
-	hputs(text);
-	hputs("</a>");
-}
-
-static void
-hput_pagelink(long page, char *text)
-{
-	extern char *tag;
-
-	hputs("<a href=\"");
-#if defined(ENABLE_STATIC) && ENABLE_STATIC == 1
+#ifdef ENABLE_STATIC
 	hput_url(NULL, NULL);
 	if (page > 0) {
-		if (tag != NULL) {
+		if (tname != NULL) {
 			hputs("tag_");
-			hputs(tag);
+			hputs(tname);
 		} else
 			hputs("index");
 		hputc('_');
 		hputd(page);
-		hputs(STATIC_EXTENSION);
-	} else if (tag != NULL) {
+		hputs(".html");
+	} else if (tname != NULL) {
 		hputs("tag_");
-		hputs(tag);
-		hputs(STATIC_EXTENSION);
+		hputs(tname);
+		hputs(".html");
 	}
 #else
-	if (tag != NULL)
-		hput_url("tag", tag);
+	if (tname != NULL)
+		hput_url("tag", tname);
 	else
 		hput_url(NULL, NULL);
 	if (page > 0) {
@@ -188,6 +196,9 @@ hput_pagelink(long page, char *text)
 	hputs("\">");
 	hputs(text);
 	hputs("</a>");
+#ifdef ENABLE_STATIC
+	add_static_tag(tname, page);
+#endif /* ENABLE_STATIC */
 }
 
 void
@@ -224,7 +235,7 @@ render_article_tag(char *tag)
 	if (tag == NULL)
 		hputs("none");
 	else {
-		hput_link("tag", tag, tag);
+		hput_pagelink(tag, 0, tag);
 		hputc(' ');
 	}
 }
@@ -251,7 +262,7 @@ render_generic_markers(char *a)
 	return 1;
 }
 
-#if defined(ENABLE_COMMENTS) && ENABLE_COMMENTS == 1
+#ifdef ENABLE_COMMENTS
 
 static void
 render_comment(char *author, struct tm *tm, char *ip, char *mail, char *web,
@@ -261,6 +272,16 @@ render_comment(char *author, struct tm *tm, char *ip, char *mail, char *web,
 	char buf[BUFSIZ], *a, *b;
 	char date[TIME_LENGTH+1], body[BUFSIZ];
 
+#ifdef ENABLE_STATIC
+	if (from_cmd) {
+		if ((fin = fopen(CHROOT_DIR TEMPLATES_DIR
+		    "/comment.html", "r")) == NULL) {
+			warn("fopen: %s", CHROOT_DIR TEMPLATES_DIR
+			    "/comment.html");
+			return;
+		}
+	} else
+#endif /* ENABLE_STATIC */
 	if ((fin = fopen(TEMPLATES_DIR"/comment.html", "r")) == NULL) {
 		warn("fopen: %s", TEMPLATES_DIR"/comment.html");
 		return;
@@ -305,7 +326,7 @@ render_comment(char *author, struct tm *tm, char *ip, char *mail, char *web,
 	fclose(fin);
 }
 
-#if defined(ENABLE_POST_COMMENT) && ENABLE_POST_COMMENT == 1
+#ifdef ENABLE_POST_COMMENT
 
 static void
 render_comment_form(char *aname)
@@ -317,6 +338,16 @@ render_comment_form(char *aname)
 	extern struct cform comment_form;
 	extern char *__progname;
 
+#ifdef ENABLE_STATIC
+	if (from_cmd) {
+		if ((fin = fopen(CHROOT_DIR TEMPLATES_DIR
+		    "/comment_form.html","r")) == NULL) {
+			warn("fopen: %s", CHROOT_DIR TEMPLATES_DIR
+			    "/comment_form.html");
+			return;
+		}
+	} else
+#endif /* ENABLE_STATIC */
 	if ((fin = fopen(TEMPLATES_DIR"/comment_form.html", "r")) == NULL) {
 		warn("fopen: %s", TEMPLATES_DIR"/comment_form.html");
 		return;
@@ -382,6 +413,16 @@ render_comments(char *aname)
 	FILE *fin;
 	char buf[BUFSIZ], *a, *b;
 
+#ifdef ENABLE_STATIC
+	if (from_cmd) {
+		if ((fin = fopen(CHROOT_DIR TEMPLATES_DIR
+		    "/comments.html", "r")) == NULL) {
+			warn("fopen: %s", CHROOT_DIR TEMPLATES_DIR
+			    "/comments.html");
+			return;
+		}
+	} else
+#endif /* ENABLE_STATIC */
 	if ((fin = fopen(TEMPLATES_DIR"/comments.html", "r")) == NULL) {
 		warn("fopen: %s", TEMPLATES_DIR"/comments.html");
 		return;
@@ -398,7 +439,7 @@ render_comments(char *aname)
 				else if (strcmp(a, "COMMENTS") == 0)
 					read_comments(aname,
 					    render_comment);
-#if defined(ENABLE_POST_COMMENT) && ENABLE_POST_COMMENT == 1
+#ifdef ENABLE_POST_COMMENT
 				else if (strcmp(a, "COMMENT_FORM") == 0)
 					render_comment_form(aname);
 #endif /* ENABLE_POST_COMMENT */
@@ -420,6 +461,16 @@ render_article_content(char *aname, char *title, struct tm *tm, FILE *fbody,
 	char buf[BUFSIZ], *a, *b;
 	char date[TIME_LENGTH+1], body[BUFSIZ];
 
+#ifdef ENABLE_STATIC
+	if (from_cmd) {
+		if ((fin = fopen(CHROOT_DIR TEMPLATES_DIR
+		    "/article.html", "r")) == NULL) {
+			warn("fopen: %s", CHROOT_DIR TEMPLATES_DIR
+			    "/article.html");
+			return;
+		}
+	} else
+#endif /* ENABLE_STATIC */
 	if ((fin = fopen(TEMPLATES_DIR"/article.html", "r")) == NULL) {
 		warn("fopen: %s", TEMPLATES_DIR"/article.html");
 		return;
@@ -449,7 +500,7 @@ render_article_content(char *aname, char *title, struct tm *tm, FILE *fbody,
 				} else if (strcmp(a, "URL") == 0)
 					hput_url(aname, NULL);
 				else if (strcmp(a, "NB_COMMENTS") == 0) {
-#if defined(ENABLE_COMMENTS) && ENABLE_COMMENTS == 1
+#ifdef ENABLE_COMMENTS
 					switch (nb_comments) {
 					case 0:
 						hputs("no comment");
@@ -480,7 +531,7 @@ render_article(char *aname)
 	else {
 		if (read_article(aname, render_article_content, NULL, 0) == -1)
 			render_error(ERR_PAGE_ARTICLE);
-#if defined(ENABLE_COMMENTS) && ENABLE_COMMENTS == 1
+#ifdef ENABLE_COMMENTS
 		else
 			render_comments(aname);
 #endif /* ENABLE_COMMENTS */
@@ -493,7 +544,7 @@ render_tag(char *tag, uint nb_articles)
 	hputs("<span style=\"font-size: ");
 	hputd(nb_articles*TAG_CLOUD_THRES+100);
 	hputs("%\">");
-	hput_link("tag", tag, tag);
+	hput_pagelink(tag, 0, tag);
 	hputs("</span> ");
 }
 
@@ -503,6 +554,16 @@ render_tags(char *nop)
 	FILE *fin;
 	char buf[BUFSIZ], *a, *b;
 
+#ifdef ENABLE_STATIC
+	if (from_cmd) {
+		if ((fin = fopen(CHROOT_DIR TEMPLATES_DIR
+		    "/tags.html", "r")) == NULL) {
+			warn("fopen: %s", CHROOT_DIR TEMPLATES_DIR
+			    "/error.html");
+			return;
+		}
+	} else
+#endif /* ENABLE_STATIC */
 	if ((fin = fopen(TEMPLATES_DIR"/tags.html", "r")) == NULL) {
 		warn("fopen: %s", TEMPLATES_DIR"/error.html");
 		return;
@@ -535,12 +596,28 @@ render_page(page_cb cb, char *data)
 	extern long offset;
 
 	nb_articles = 0;
+#ifdef ENABLE_STATIC
+	if (from_cmd) {
+		if ((fin = fopen(CHROOT_DIR TEMPLATES_DIR
+		    "/page.html", "r")) == NULL) {
+			warn("fopen: %s", CHROOT_DIR TEMPLATES_DIR"/page.html");
+			return;
+		}
+	} else
+#endif /* ENABLE_STATIC */
 	if ((fin = fopen(TEMPLATES_DIR"/page.html", "r")) == NULL) {
 		warn("fopen: %s", TEMPLATES_DIR"/page.html");
 		return;
 	}
-	fputs("Content-type: text/html;charset="CHARSET"\r\n\r\n", stdout);
-	fflush(stdout);
+#ifdef ENABLE_STATIC
+	if (!from_cmd) {
+		fputs("Content-type: text/html;charset="CHARSET"\r\n\r\n", hout);
+		fflush(hout);
+	}
+#else
+	fputs("Content-type: text/html;charset="CHARSET"\r\n\r\n", hout);
+	fflush(hout);
+#endif /* ENABLE_STATIC */
 	while (fgets(buf, BUFSIZ, fin) != NULL) {
 		buf[strcspn(buf, "\n")] = '\0';
 		for (a = buf; (b = strstr(a, TAG)) != NULL; a = b+2) {
@@ -572,12 +649,11 @@ render_page(page_cb cb, char *data)
 				} else if (strcmp(a, "NEXT") == 0
 				    && cb == render_article
 				    && offset > 0)
-					hput_pagelink(offset-1, NAV_NEXT);
+					hput_pagelink(tag, offset-1, NAV_NEXT);
 				else if (strcmp(a, "PREVIOUS") == 0
-				    && nb_articles >= NB_ARTICLES) {
-					hput_pagelink(offset+1, NAV_PREVIOUS);
-				} else if (strcmp(a, "BODY") == 0
-				    && cb != NULL)
+				    && nb_articles >= NB_ARTICLES)
+					hput_pagelink(tag, offset+1, NAV_PREVIOUS);
+				else if (strcmp(a, "BODY") == 0 && cb != NULL)
 					cb(data);
 			}
 		}
@@ -626,9 +702,17 @@ render_rss(void)
 	time_t now;
 	extern char *tag;
 
+#ifdef ENABLE_STATIC
+	if (!from_cmd) {
+		fputs("Content-type: application/rss+xml;charset="CHARSET"\r\n\r\n",
+		    hout);
+		fflush(hout);
+	}
+#else
 	fputs("Content-type: application/rss+xml;charset="CHARSET"\r\n\r\n",
-	    stdout);
-	fflush(stdout);
+	    hout);
+	fflush(hout);
+#endif /* ENABLE_STATIC */
 	hputs(
 	    "<?xml version=\"1.0\"?>\n"
 	    "<rss version=\"2.0\" xmlns:atom=\"http://www.w3.org/2005/Atom\">\n"
@@ -638,6 +722,10 @@ render_rss(void)
 	hputs("\" rel=\"self\" type=\"application/rss+xml\" />\n"
 	    "    <title>");
 	hputs(SITE_NAME);
+	if (tag != NULL) {
+		hputs(" - ");
+		hputs(tag);
+	}
 	hputs("</title>\n"
 	    "    <link>");
 	hput_url(NULL, NULL);

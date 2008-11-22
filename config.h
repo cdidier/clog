@@ -1,23 +1,24 @@
 /* $Id$ */
 
-#define ENABLE_COMMENTS		1
-#define ENABLE_POST_COMMENT	1
-#define ENABLE_STATIC		0
+#define ENABLE_COMMENTS	
+#define ENABLE_POST_COMMENT
+#define ENABLE_STATIC
 
-#define	BASE_URL	"http://cybione.org/~cdidier/log"
+#define	BASE_URL	"http://cybione.org/~cdidier/log/"
 #define SITE_NAME	"C'log"
 #define DESCRIPTION	"Colin's web journal."
 #define COPYRIGHT	"Copyright &#169; 2008 Colin Didier; Tous droits réservés."
 #define CHARSET		"iso-8859-15"
 
-#if defined(ENABLE_STATIC) && ENABLE_STATIC == 1
+#ifdef ENABLE_STATIC
+#define CHROOT_DIR		"/var/www/"
 #define STATIC_EXTENSION	".html"
 #endif /* ENABLE_STATIC */
 
-#define TEMPLATES_DIR	"/users/cdidier/log/templates"
-#define DATA_DIR	"/users/cdidier/log/data"
-#define ARTICLES_DIR	DATA_DIR "/articles"
-#define TAGS_DIR	DATA_DIR "/tags"
+#define BASE_DIR	"/users/cdidier/log"
+#define TEMPLATES_DIR	BASE_DIR"/templates"
+#define ARTICLES_DIR	BASE_DIR"/data/articles"
+#define TAGS_DIR	BASE_DIR"/data/tags"
 
 #define NB_ARTICLES	5
 #define TAG_CLOUD_THRES	10

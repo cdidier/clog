@@ -33,12 +33,11 @@ static char rcsid[] = "$Id$";
 
 #include "common.h"
 
+#if defined(ENABLE_COMMENTS) && defined(ENABLE_POST_COMMENT)
+
 void render_article(char *);
 void render_page(page_cb, char *);
 void redirect(char *);
-
-#if defined(ENABLE_COMMENTS) && ENABLE_COMMENTS == 1 \
-    && defined(ENABLE_POST_COMMENT) && ENABLE_POST_COMMENT == 1
 
 #define INPUT_JAM	"jam="
 #define INPUT_JAM_HASH	"jam_hash="
@@ -246,4 +245,4 @@ post_comment(char *aname)
 out:	render_page(render_article, aname);
 }
 
-#endif /* ENABLE_COMMENTS */
+#endif /* ENABLE_POST_COMMENT */

@@ -31,6 +31,10 @@ static char rcsid[] = "$Id$";
 
 #include "common.h"
 
+#ifdef ENABLE_STATIC
+extern int from_cmd;
+#endif /* ENABLE_STATIC */
+
 static int
 compar_name_asc(const FTSENT **f1, const FTSENT **f2)
 {
@@ -43,7 +47,7 @@ compar_name_desc(const FTSENT **f1, const FTSENT **f2)
 	return strcmp((*f2)->fts_name, (*f1)->fts_name);
 }
 
-#if defined(ENABLE_COMMENTS) && ENABLE_COMMENTS == 1
+#ifdef ENABLE_COMMENTS
 
 static void
 read_comment(char *aname, char *cname, comment_cb cb)
@@ -54,8 +58,14 @@ read_comment(char *aname, char *cname, comment_cb cb)
 	    web[COMMENT_MAXLEN];
 	struct tm tm;
 
-	snprintf(path, MAXPATHLEN, ARTICLES_DIR"/%s/comments/%s", aname,
-	    cname);
+#ifdef ENABLE_STATIC
+	if (from_cmd)
+		snprintf(path, MAXPATHLEN, CHROOT_DIR ARTICLES_DIR
+		    "/%s/comments/%s", aname, cname);
+	else
+#endif /* ENABLE_STATIC */
+		snprintf(path, MAXPATHLEN, ARTICLES_DIR"/%s/comments/%s", aname,
+		    cname);
 	if ((fin = fopen(path, "r")) == NULL) {
 		warn("fopen: %s", path);
 		return;
@@ -98,7 +108,13 @@ read_comments(char *aname, comment_cb cb)
 	uint nb;
 
 	nb = 0;
-	snprintf(path, MAXPATHLEN, ARTICLES_DIR"/%s/comments", aname);
+#ifdef ENABLE_STATIC
+	if (from_cmd)
+		snprintf(path, MAXPATHLEN, CHROOT_DIR ARTICLES_DIR
+		    "/%s/comments", aname);
+	else
+#endif /* ENABLE_STATIC */
+		snprintf(path, MAXPATHLEN, ARTICLES_DIR"/%s/comments", aname);
 	if ((fts = fts_open(path_argv, FTS_LOGICAL|FTS_NOSTAT,
 	    compar_name_asc)) == NULL) {
 		warn("fts_open: %s", path);
@@ -128,12 +144,17 @@ read_article_tags(char *aname, article_tag_cb cb)
 {
 	FTS *fts, *fts2;
 	FTSENT *e, *e2;
-	char * const path_argv[] = { TAGS_DIR, NULL };
 	char path[MAXPATHLEN];
-	char * const path2_argv[] = { path, NULL };
+	char * const path_argv[] = { path, NULL };
 	uint nb;
 
 	nb = 0;
+#ifdef ENABLE_STATIC
+	if (from_cmd)
+		strlcpy(path, CHROOT_DIR TAGS_DIR, MAXPATHLEN);
+	else
+#endif /* ENABLE_STATIC */
+		strlcpy(path, TAGS_DIR, MAXPATHLEN);
 	if ((fts = fts_open(path_argv, FTS_LOGICAL|FTS_NOSTAT,
 	    compar_name_asc)) == NULL) {
 		warn("fts_open: "TAGS_DIR);
@@ -149,7 +170,7 @@ read_article_tags(char *aname, article_tag_cb cb)
 	for (; e != NULL; e = e->fts_link) {
 		snprintf(path, MAXPATHLEN, "%s/%s", e->fts_accpath,
 		    e->fts_name);
-		if ((fts2 = fts_open(path2_argv, FTS_LOGICAL|FTS_NOSTAT,
+		if ((fts2 = fts_open(path_argv, FTS_LOGICAL|FTS_NOSTAT,
 		    compar_name_asc)) == NULL) {
 			warn("fts_open: %s", path);
 			continue;
@@ -188,7 +209,13 @@ read_article(char *aname, article_cb cb, char *atitle, size_t atitle_len)
 	if (strptime(aname, FILE_FORMAT, &tm) == NULL)
 		return -1;
 	mktime(&tm);
-	snprintf(path, MAXPATHLEN, ARTICLES_DIR"/%s/article", aname);
+#ifdef ENABLE_STATIC
+	if (from_cmd)
+		snprintf(path, MAXPATHLEN, CHROOT_DIR ARTICLES_DIR
+		    "/%s/article", aname);
+	else
+#endif /* ENABLE_STATIC */
+		snprintf(path, MAXPATHLEN, ARTICLES_DIR"/%s/article", aname);
 	if ((fin = fopen(path, "r")) == NULL) {
 		if (errno != ENOENT)
 			warn("fopen: %s", path);
@@ -203,7 +230,7 @@ read_article(char *aname, article_cb cb, char *atitle, size_t atitle_len)
 	if (atitle != NULL)
 		strlcpy(atitle, title, atitle_len);
 	if (cb != NULL)
-#if defined(ENABLE_COMMENTS) && ENABLE_COMMENTS == 1
+#ifdef ENABLE_COMMENTS
 		cb(aname, title, &tm, fin, read_comments(aname, NULL));
 #else
 		cb(aname, title, &tm, fin, 0);
@@ -231,10 +258,22 @@ read_articles(article_cb cb)
 	extern char *tag;
 	extern long offset;
 
-	if (tag != NULL)
-		snprintf(path, MAXPATHLEN, TAGS_DIR"/%s", tag);
-	else
-		strlcpy(path, ARTICLES_DIR, MAXPATHLEN);
+	if (tag != NULL) {
+#ifdef ENABLE_STATIC
+		if (from_cmd)
+			snprintf(path, MAXPATHLEN, CHROOT_DIR TAGS_DIR
+			    "/%s", tag);
+		else
+#endif /* ENABLE_STATIC */
+			snprintf(path, MAXPATHLEN, TAGS_DIR"/%s", tag);
+	} else {
+#ifdef ENABLE_STATIC
+		if (from_cmd)
+			strlcpy(path, CHROOT_DIR ARTICLES_DIR, MAXPATHLEN);
+		else
+#endif /* ENABLE_STATIC */
+			strlcpy(path, ARTICLES_DIR, MAXPATHLEN);
+	}
 	if ((fts = fts_open(path_argv, FTS_LOGICAL|FTS_NOSTAT,
 	    compar_name_desc)) == NULL) {
 		warn("fts_open: %s", path);
@@ -263,11 +302,16 @@ read_tags(tag_cb cb)
 {
 	FTS *fts, *fts2;
 	FTSENT *e, *e2;
-	char * const path_argv[] = { TAGS_DIR, NULL };
 	char path[MAXPATHLEN];
-	char * const path2_argv[] = { path, NULL };
+	char * const path_argv[] = { path, NULL };
 	uint nb;
 
+#ifdef ENABLE_STATIC
+	if (from_cmd)
+		strlcpy(path, CHROOT_DIR TAGS_DIR, MAXPATHLEN);
+	else
+#endif /* ENABLE_STATIC */
+		strlcpy(path, TAGS_DIR, MAXPATHLEN);
 	if ((fts = fts_open(path_argv, FTS_LOGICAL|FTS_NOSTAT,
 	    compar_name_asc)) == NULL) {
 		warn("fts_open: "TAGS_DIR);
@@ -283,7 +327,7 @@ read_tags(tag_cb cb)
 	for (; e != NULL; e = e->fts_link) {
 		snprintf(path, MAXPATHLEN, "%s/%s", e->fts_accpath,
 		    e->fts_name);
-		if ((fts2 = fts_open(path2_argv, FTS_LOGICAL|FTS_NOSTAT,
+		if ((fts2 = fts_open(path_argv, FTS_LOGICAL|FTS_NOSTAT,
 		    compar_name_asc)) == NULL) {
 			warn("fts_open: %s", path);
 			continue;

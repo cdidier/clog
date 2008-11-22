@@ -1,8 +1,8 @@
 # $Id$
 
 PROG= blog.cgi
-CFLAGS=-W -Wall
+CFLAGS=-W -Wall -g
 LDFLAGS=-lz
-SRCS= main.c post.c read.c render.c
+SRCS= main.c post.c read.c render.c static.c
 
 .include <bsd.prog.mk>

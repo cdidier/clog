@@ -35,15 +35,25 @@ void render_article(char *);
 void render_tags(char *);
 void render_page(page_cb, char *);
 void render_rss(void);
-void post_comment(char *);
 
 gzFile	 gz;
+FILE	*hout;
 char	*tag;
 long	 offset;
-#if defined(ENABLE_COMMENTS) && ENABLE_COMMENTS == 1 \
-    && defined(ENABLE_POST_COMMENT) && ENABLE_POST_COMMENT == 1
+
+#if defined(ENABLE_COMMENTS) && defined(ENABLE_POST_COMMENT)
+void post_comment(char *);
+
 struct cform	comment_form;
-#endif /* ENABLE_COMMENTS */
+#endif /* ENABLE_POST_COMMENT */
+
+#ifdef ENABLE_STATIC
+void generate_static(void);
+void update_static(void);
+
+int from_cmd;
+int gen;
+#endif /* ENABLE_STATIC */
 
 static char *
 get_params(void)
@@ -100,14 +110,20 @@ enable_gzip(void)
 void
 redirect(char *aname)
 {
+#ifndef ENABLE_STATIC
 	extern char *__progname;
-	fputs("Status: 302\r\nLocation: "BASE_URL"/", stdout);
+#endif /* !ENABLE_STATIC */
+
+	fputs("Status: 302\r\nLocation: "BASE_URL, stdout);
+#ifndef ENABLE_STATIC
+	fputc('/', stdout);
 	fputs(__progname, stdout);
+#endif /* !ENABLE_STATIC */
 	if (aname != NULL) {
 		fputc('/', stdout);
 		fputs(aname, stdout);
-#if defined(ENABLE_STATIC) && ENABLE_STATIC == 1
-		fputs(STATIC_EXTENSION, stdout);
+#ifdef ENABLE_STATIC
+		fputs(".html", stdout);
 #endif /* ENABLE_STATIC */
 	}
 	fputs("\r\n\r\n", stdout);
@@ -120,22 +136,30 @@ main(int argc, char **argv)
 	char *p;
 
 	gz = NULL;
+	hout = stdout;
 	tag = NULL;
 	offset = 0;
-#if defined(ENABLE_COMMENTS) && ENABLE_COMMENTS == 1 \
-    && defined(ENABLE_POST_COMMENT) && ENABLE_POST_COMMENT == 1
+#if defined(ENABLE_COMMENTS) && defined(ENABLE_POST_COMMENT)
 	memset(&comment_form, 0, sizeof(struct cform));
-#endif /* ENABLE_COMMENTS */
+#endif /* POST_COMMENT */
 	enable_gzip();
 	parse_query();
+#ifdef ENABLE_STATIC
+	gen = from_cmd = 0;
+	if ((from_cmd = (getenv("GEN_STATIC") != NULL))) {
+		generate_static();
+	} else if ((from_cmd = from_cmd = (getenv("UP_STATIC") != NULL))) {
+		update_static();
+	} else
+		redirect(NULL);
+#else
 	if ((p = get_params()) != NULL) {
 		if (strncmp(p, "20", 2) == 0 || strncmp(p, "19", 2) == 0) {
-#if defined(ENABLE_COMMENTS) && ENABLE_COMMENTS == 1 \
-    && defined(ENABLE_POST_COMMENT) && ENABLE_POST_COMMENT == 1
+#if defined(ENABLE_COMMENTS) && defined(ENABLE_POST_COMMENT)
 			if (strcmp(getenv("REQUEST_METHOD"), "POST") == 0)
 				post_comment(p);
 			else
-#endif /* ENABLE_COMMENTS */
+#endif /* POST_COMMENT */
 				render_page(render_article, p);
 		} else if (strncmp(p, "tag/", 4) == 0) {
 			if (p[4] != '\0')
@@ -151,6 +175,7 @@ main(int argc, char **argv)
 			render_page(render_error, ERR_PAGE_UNKNOWN);
 	} else
 		render_page(render_article, NULL);
+#endif /* ENABLE_STATIC */
 	if (gz != NULL)
 		gzclose(gz);
 	else
