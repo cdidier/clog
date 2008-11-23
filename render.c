@@ -24,7 +24,6 @@ static char rcsid[] = "$Id$";
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <zlib.h>
 #include <sys/types.h>
 #include <sha1.h>
 
@@ -35,6 +34,11 @@ void	read_articles(article_cb);
 uint	read_article_tags(char *, article_tag_cb);
 void	read_tags(tag_cb);
 
+#ifdef ENABLE_GZIP
+#include <zlib.h>
+extern gzFile	 gz;
+#endif /* ENABLE_GZIP */
+
 #ifdef ENABLE_COMMENTS
 uint	read_comments(char *, comment_cb);
 #endif /* ENABLE_COMMENTS */
@@ -42,40 +46,44 @@ uint	read_comments(char *, comment_cb);
 #ifdef ENABLE_STATIC
 void	add_static_tag(char *, long);
 void	add_static_article(char *);
-
 extern int from_cmd;
 #endif /* ENABLE_STATIC */
 
 #define TAG "%%"
 
 static uint	 nb_articles;
-extern gzFile	 gz;
 extern FILE	*hout;
 
 static void
 hputc(const char c)
 {
+#ifdef ENABLE_GZIP
 	if (gz != NULL)
 		gzputc(gz, c);
 	else
+#endif /* ENABLE_GZIP */
 		fputc(c, hout);
 }
 
 static void
 hputs(const char *s)
 {
+#ifdef ENABLE_GZIP
 	if (gz != NULL)
 		gzputs(gz, s);
 	else
+#endif /* ENABLE_GZIP */
 		fputs(s, hout);
 }
 
 static void
 hputd(const long long l)
 {
+#ifdef ENABLE_GZIP
 	if (gz != NULL)
 		gzprintf(gz, "%lld", l);
 	else
+#endif /* ENABLE_GZIP */
 		fprintf(hout, "%lld", l);
 }
 

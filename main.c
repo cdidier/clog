@@ -26,7 +26,6 @@ static char rcsid[] = "$Id$";
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <zlib.h>
 
 #include "common.h"
 
@@ -36,24 +35,26 @@ void render_tags(char *);
 void render_page(page_cb, char *);
 void render_rss(void);
 
+#ifdef ENABLE_GZIP
+#include <zlib.h>
 gzFile	 gz;
-FILE	*hout;
-char	*tag;
-long	 offset;
+#endif /* ENABLE_GZIP */
 
 #if defined(ENABLE_COMMENTS) && defined(ENABLE_POST_COMMENT)
 void post_comment(char *);
-
 struct cform	comment_form;
 #endif /* ENABLE_POST_COMMENT */
 
 #ifdef ENABLE_STATIC
 void generate_static(void);
 void update_static(void);
-
 int from_cmd;
 int gen;
 #endif /* ENABLE_STATIC */
+
+FILE	*hout;
+char	*tag;
+long	 offset;
 
 static char *
 get_params(void)
@@ -89,6 +90,8 @@ parse_query(void)
 	}
 }
 
+#ifdef ENABLE_GZIP
+
 static void
 enable_gzip(void)
 {
@@ -106,6 +109,8 @@ enable_gzip(void)
 	else
 		fputs("Content-Encoding: gzip\r\n", stdout);
 }
+
+#endif /* ENABLE_GZIP */
 
 void
 redirect(char *aname)
@@ -135,14 +140,16 @@ main(int argc, char **argv)
 {
 	char *p;
 
+#ifdef ENABLE_GZIP
 	gz = NULL;
+	enable_gzip();
+#endif /* ENABLE_GZIP */
 	hout = stdout;
 	tag = NULL;
 	offset = 0;
 #if defined(ENABLE_COMMENTS) && defined(ENABLE_POST_COMMENT)
 	memset(&comment_form, 0, sizeof(struct cform));
 #endif /* POST_COMMENT */
-	enable_gzip();
 	parse_query();
 #ifdef ENABLE_STATIC
 	gen = from_cmd = 0;
@@ -176,9 +183,11 @@ main(int argc, char **argv)
 	} else
 		render_page(render_article, NULL);
 #endif /* ENABLE_STATIC */
+#ifdef ENABLE_GZIP
 	if (gz != NULL)
 		gzclose(gz);
 	else
+#endif /* ENABLE_GZIP */
 		fflush(stdout);
 	return 0;
 }

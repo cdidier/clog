@@ -2,6 +2,7 @@
 
 #define ENABLE_COMMENTS	
 #define ENABLE_POST_COMMENT
+#define ENABLE_GZIP
 #define ENABLE_STATIC
 
 #define	BASE_URL	"http://cybione.org/~cdidier/log/"
@@ -11,7 +12,7 @@
 #define CHARSET		"iso-8859-15"
 
 #ifdef ENABLE_STATIC
-#define CHROOT_DIR		"/var/www/"
+#define CHROOT_DIR		"/var/www"
 #define STATIC_EXTENSION	".html"
 #endif /* ENABLE_STATIC */
 
