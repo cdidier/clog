@@ -134,6 +134,7 @@ gen_article(char *aname)
 		    "/%s.html", aname);
 	else
 		snprintf(path, MAXPATHLEN, BASE_DIR"/%s.html", aname);
+	fprintf(stderr, "Generating %s...\n", path);
 	old_mask = umask(0002);
 	old_hout = hout;
 	if ((hout = fopen(path, "w")) == NULL)
@@ -157,6 +158,7 @@ gen_rss(char *tname)
 
 	snprintf(path, MAXPATHLEN, CHROOT_DIR BASE_DIR"/rss%s%s.xml",
 	    tname  != NULL ? "_" : "", tname  != NULL ? tname : "");
+	fprintf(stderr, "Generating %s...\n", path);
 	old_mask = umask(0002);
 	old_hout = hout;
 	if ((hout = fopen(path, "w")) == NULL)
@@ -189,6 +191,7 @@ gen_index(char *tname, long page)
 		    	tname  != NULL ? "tag_" : "index",
 			tname  != NULL ? tname : "",
 		    	page > 0 ? "_" : "", page > 0 ? pagenum : "");
+	fprintf(stderr, "Generating %s...\n", path);
 	old_mask = umask(0002);
 	old_hout = hout;
 	if ((hout = fopen(path, "w")) == NULL)
