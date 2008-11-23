@@ -1,0 +1,69 @@
+clog:
+=====
+
+home-page: http://cvs.cybione.org/cvsweb/clog/?cvsroot=clog
+
+About:
+======
+
+
+
+
+Installation:
+=============
+
+Edit the file config.h to configure the blog engine before compiling it.
+
+The to build it, just type (on *BSD):
+	make
+(on a Linux system, use pmake)
+
+File layout:
+============
+
+
+Disabling comments:
+===================
+
+You can disable comments (so you can't see and post them) by commenting
+the line where ENABLE_COMMENTS is defined (in config.h).
+
+Or simply disable the way to post comments (so you can see the comments
+posted before and you can't post new comment anymore) by commenting
+the line where ENABLE_POST_COMMENT is defined (in config.h).
+
+Disabling GZIP compression:
+===========================
+
+If you don't want the GZIP compression, you can disable it by
+commenting the line where ENABLE_GZIP is defined (in config.h).
+
+Then you must remove "-lz" from the variable LDFLAGS in the Makefile.
+
+Using static renderer:
+======================
+
+You need to type some commands (described below) to generate the static
+pages of your blog. The the blog engine will automatically update them
+when a comment is posted. To enable the static mode, just define
+ENABLE_STATIC in the config.h file.
+
+Permissions consideration: The HTML and XML files in the directory
+BASE_DIR (in config.h) must be writable by the httpd user.
+
+Chroot considerations: If you run your httpd server in a chroot, the
+root directory won't be the same if the blog engine is started by the
+httpd server or from the command line, so the templates and data files
+won't be at the same place. To fix this just modify CHROOT_DIR (in
+config.h).
+
+To generate all the static pages, you have to type this command:
+	env GEN_STATIC= ./blog.cgi
+
+To update the static pages when you have written new articles:
+        env UP_STATIC= ./blog.cgi
+
+And to re-generate a specific article (which you have modified):
+	env UP_STATIC="<name of the directory of the article>" ./blog.cgi
+For example:
+	env UP_STATIC="200811121418a" ./blog.cgi
