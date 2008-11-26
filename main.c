@@ -161,9 +161,11 @@ main(int argc, char **argv)
 			update_static();
 #if defined(ENABLE_COMMENTS) && defined(ENABLE_POST_COMMENT)
 	} else if ((p = get_params()) != NULL
-	    && (strncmp(p, "20", 2) == 0 || strncmp(p, "19", 2) == 0)
-	    && strcmp(getenv("REQUEST_METHOD"), "POST") == 0) {
-		post_comment(p);
+	    && (strncmp(p, "20", 2) == 0 || strncmp(p, "19", 2) == 0)) {
+		if (strcmp(getenv("REQUEST_METHOD"), "POST") == 0)
+			post_comment(p);
+		else
+			redirect(p);
 #endif /* POST_COMMENT */
 	} else
 		redirect(NULL);
