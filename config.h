@@ -1,6 +1,6 @@
 /* $Id$ */
 
-#define ENABLE_COMMENTS	
+#define ENABLE_COMMENTS
 #define ENABLE_POST_COMMENT
 #define ENABLE_GZIP
 #define ENABLE_STATIC

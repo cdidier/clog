@@ -647,8 +647,10 @@ render_page(page_cb cb, const char *data)
 	}
 #ifdef ENABLE_STATIC
 	if (!generating_static) {
+#ifdef ENABLE_GZIP
 		if (gz != NULL)
 			fputs("Content-Encoding: gzip\r\n", stdout);
+#endif /* ENABLE_GZIP */
 		fputs("Content-type: text/html;"
 		    "charset="CHARSET"\r\n\r\n", hout);
 		fflush(hout);
@@ -745,8 +747,10 @@ render_rss(void)
 
 #ifdef ENABLE_STATIC
 	if (!generating_static) {
+#ifdef ENABLE_GZIP
 		if (gz != NULL)
 			fputs("Content-Encoding: gzip\r\n", stdout);
+#endif /* ENABLE_GZIP */
 		fputs("Content-type: application/rss+xml;"
 		    "charset="CHARSET"\r\n\r\n", hout);
 		fflush(hout);
