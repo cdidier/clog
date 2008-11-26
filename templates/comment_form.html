@@ -14,10 +14,10 @@
 					}
 				}
 			</script>
-			<a name="com" href="#com" onClick="javascript:toggle_visibility('com');">Comment!</a>
+			<a name="com" href="#com" onClick="javascript:toggle_visibility('comment_form');">Comment!</a>
 			<p><b>%%FORM_ERROR%%</b></p>
-			<form name="comment_form" method="post" action="%%POST_URL%%">
-				<div id="com">
+			<form name="comment_form" method="post" action="%%POST_URL%%#com">
+				<div id="comment_form">
 					<input type="hidden" name="jam_hash" value="%%JAM_HASH%%">
 					<table>
 						<tr><td><b>Name:</b></td><td><input type="text" name="name" maxlength="50" value="%%FORM_NAME%%"></td></tr>
@@ -27,7 +27,7 @@
 					</table>
 					<b>Comment:</b><br>
 					<textarea name="text" rows="7" cols="80">%%FORM_TEXT%%</textarea><br>
-					<input type="submit" value="Submit">
+					<input type="submit" value="Submit"> <span style="font-size: 80%;">(It can takes some time to update this page after posting your comment, so don't repost it.)</span>
 				</div>
 			</form>
 			<script type="text/javascript">
@@ -35,7 +35,7 @@
 				    && document.comment_form.mail.value == ""
 				    && document.comment_form.web.value == ""
 				    && document.comment_form.text.value == "")
-					toggle_visibility('com');
+					toggle_visibility('comment_form');
 			</script>
 		</div>
 	</div>
