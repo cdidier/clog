@@ -34,12 +34,12 @@ static char rcsid[] = "$Id$";
 
 #ifdef ENABLE_STATIC
 
-void render_article(char *);
-void render_tags(char *);
-void render_page(page_cb, char *);
+void render_article(const char *);
+void render_tags(const char *);
+void render_page(page_cb, const char *);
 void render_rss(void);
-void read_article_tags(char *, article_tag_cb);
-long read_page(char *);
+uint read_article_tags(const char *, article_tag_cb);
+long read_page(const char *);
 
 struct vtag {
 	char	*tname;
@@ -59,7 +59,7 @@ static SLIST_HEAD(, varticle) visited_articles;
 extern int from_cmd;
 
 void
-add_static_tag(char *tname, long page)
+add_static_tag(const char *tname, long page)
 {
 	struct vtag *vt, *end;
 
@@ -94,7 +94,7 @@ add_static_tag(char *tname, long page)
 }
 
 void
-add_static_article(char *aname)
+add_static_article(const char *aname)
 {
 	struct varticle *va;
 
@@ -118,13 +118,13 @@ add_static_article(char *aname)
 }
 
 static void
-gen_article(char *aname)
+gen_article(const char *aname)
 {
 	char path[MAXPATHLEN];
 	mode_t old_mask;
 	FILE *old_hout;
 	extern FILE *hout;
-	extern char *tag;
+	extern const char *tag;
 	extern long offset;
 
 	if (from_cmd) {
@@ -146,13 +146,13 @@ gen_article(char *aname)
 }
 
 static void
-gen_rss(char *tname)
+gen_rss(const char *tname)
 {
 	char path[MAXPATHLEN];
 	mode_t old_mask;
 	FILE *old_hout;
 	extern FILE *hout;
-	extern char *tag;
+	extern const char *tag;
 
 	if (from_cmd) {
 		snprintf(path, MAXPATHLEN, CHROOT_DIR BASE_DIR
@@ -174,13 +174,13 @@ gen_rss(char *tname)
 }
 
 static void
-gen_index(char *tname, long page)
+gen_index(const char *tname, long page)
 {
 	char path[MAXPATHLEN], pagenum[BUFSIZ];
 	mode_t old_mask;
 	FILE *old_hout;
 	extern FILE *hout;
-	extern char *tag;
+	extern const char *tag;
 	extern long offset;
 
 	snprintf(pagenum, BUFSIZ, "%ld", page);
@@ -217,7 +217,7 @@ gen_tags(void)
 	mode_t old_mask;
 	FILE *old_hout;
 	extern FILE *hout;
-	extern char *tag;
+	extern const char *tag;
 
 	if (from_cmd) {
 		strlcpy(path, CHROOT_DIR BASE_DIR"/tags.html", MAXPATHLEN);
@@ -236,16 +236,16 @@ gen_tags(void)
 }
 
 static void
-update_static_article_add_tag(char *tname)
+update_static_article_add_tag(const char *tname)
 {
 	add_static_tag(tname, 0);
 }
 
 void
-update_static_article(char *aname)
+update_static_article(const char *aname)
 {
 	struct vtag *vt;
-	extern char *tag;
+	extern const char *tag;
 	extern int generating_static;
 
 	generating_static = 1;

@@ -29,9 +29,9 @@ static char rcsid[] = "$Id$";
 
 #include "common.h"
 
-int	read_article(char *, article_cb, char *, size_t);
+int	read_article(const char *, article_cb, char *, size_t);
 void	read_articles(article_cb);
-uint	read_article_tags(char *, article_tag_cb);
+uint	read_article_tags(const char *, article_tag_cb);
 void	read_tags(tag_cb);
 
 #ifdef ENABLE_GZIP
@@ -40,12 +40,12 @@ extern gzFile	 gz;
 #endif /* ENABLE_GZIP */
 
 #ifdef ENABLE_COMMENTS
-uint	read_comments(char *, comment_cb);
+uint	read_comments(const char *, comment_cb);
 #endif /* ENABLE_COMMENTS */
 
 #ifdef ENABLE_STATIC
-void	add_static_tag(char *, long);
-void	add_static_article(char *);
+void	add_static_tag(const char *, long);
+void	add_static_article(const char *);
 extern int from_cmd, generating_static;
 #endif /* ENABLE_STATIC */
 
@@ -100,12 +100,12 @@ hputd(const long long l)
 }
 
 static void
-hput_escaped(char *s)
+hput_escaped(const char *s)
 {
 	char *a, *b;
 	char c;
 
-	for (a = s; (b = strpbrk(a, "<>'\"&\n")) != NULL; a = b+1) {
+	for (a = (char *)s; (b = strpbrk(a, "<>'\"&\n")) != NULL; a = b+1) {
 		c = *b;
 		*b = '\0';
 		hputs(a);
@@ -139,7 +139,7 @@ hput_escaped(char *s)
 }
 
 static void
-hput_url(char *first_level, char *second_level)
+hput_url(const char *first_level, const char *second_level)
 {
 #ifdef ENABLE_STATIC
 	extern int follow_url;
@@ -182,7 +182,7 @@ hput_url(char *first_level, char *second_level)
 }
 
 static void
-hput_pagelink(char *tname, long page, char *text)
+hput_pagelink(const char *tname, long page, const char *text)
 {
 #ifdef ENABLE_STATIC
 	extern int follow_url;
@@ -225,7 +225,7 @@ hput_pagelink(char *tname, long page, char *text)
 }
 
 void
-render_error(char *msg)
+render_error(const char *msg)
 {
 	FILE *fin;
 	char buf[BUFSIZ], *a, *b;
@@ -262,7 +262,7 @@ render_error(char *msg)
 }
 
 static void
-render_article_tag(char *tname)
+render_article_tag(const char *tname)
 {
 	if (tname == NULL)
 		hputs("none");
@@ -273,9 +273,9 @@ render_article_tag(char *tname)
 }
 
 static int
-render_generic_markers(char *a)
+render_generic_markers(const char *a)
 { 
-	extern char *tag;
+	extern const char *tag;
 
 	if (strcmp(a, "BASE_URL") == 0)
 		hput_url(NULL, NULL);
@@ -297,8 +297,8 @@ render_generic_markers(char *a)
 #ifdef ENABLE_COMMENTS
 
 static void
-render_comment(char *author, struct tm *tm, char *ip, char *mail, char *web,
-    FILE *fbody)
+render_comment(const char *author, const struct tm *tm, const char *ip,
+    const char *mail, const char *web, FILE *fbody)
 {
 	FILE *fin;
 	char buf[BUFSIZ], *a, *b;
@@ -361,7 +361,7 @@ render_comment(char *author, struct tm *tm, char *ip, char *mail, char *web,
 #ifdef ENABLE_POST_COMMENT
 
 static void
-render_comment_form(char *aname)
+render_comment_form(const char *aname)
 {
 	FILE *fin;
 	char buf[BUFSIZ], *a, *b;
@@ -437,7 +437,7 @@ render_comment_form(char *aname)
 #endif /* ENABLE_POST_COMMENT */
 
 static void
-render_comments(char *aname)
+render_comments(const char *aname)
 {
 	FILE *fin;
 	char buf[BUFSIZ], *a, *b;
@@ -483,8 +483,8 @@ render_comments(char *aname)
 #endif /* ENABLE_COMMENTS */
 
 static void
-render_article_content(char *aname, char *title, struct tm *tm, FILE *fbody,
-    uint nb_comments)
+render_article_content(const char *aname, const char *title,
+    const struct tm *tm, FILE *fbody, uint nb_comments)
 {
 	FILE *fin;
 	char buf[BUFSIZ], *a, *b;
@@ -553,7 +553,7 @@ render_article_content(char *aname, char *title, struct tm *tm, FILE *fbody,
 }
 
 void
-render_article(char *aname)
+render_article(const char *aname)
 {
 	if (aname == NULL)
 		read_articles(render_article_content);
@@ -568,7 +568,7 @@ render_article(char *aname)
 }
 
 static void
-render_tag(char *tag, uint nb_articles)
+render_tag(const char *tag, uint nb_articles)
 {
 	hputs("<span style=\"font-size: ");
 	hputd(nb_articles*TAG_CLOUD_THRES+100);
@@ -578,7 +578,7 @@ render_tag(char *tag, uint nb_articles)
 }
 
 void
-render_tags(char *nop)
+render_tags(const char *_)
 {
 	FILE *fin;
 	char buf[BUFSIZ], *a, *b;
@@ -617,11 +617,11 @@ render_tags(char *nop)
 }
 
 void
-render_page(page_cb cb, char *data)
+render_page(page_cb cb, const char *data)
 {
 	FILE *fin;
 	char buf[BUFSIZ], *a, *b;
-	extern char *tag;
+	extern const char *tag;
 	extern long offset;
 
 	nb_articles = 0;
@@ -701,8 +701,8 @@ render_page(page_cb cb, char *data)
 #define RSS_DATE_LENGTH 32
 
 static void
-render_rss_article(char *aname, char *title, struct tm *tm, FILE *fbody,
-    uint nop)
+render_rss_article(const char *aname, const char *title, const struct tm *tm,
+    FILE *fbody, uint _)
 {
 	char body[BUFSIZ], date[RSS_DATE_LENGTH];
 
@@ -734,7 +734,7 @@ render_rss(void)
 {
 	char date[RSS_DATE_LENGTH];
 	time_t now;
-	extern char *tag;
+	extern const char *tag;
 
 #ifdef ENABLE_STATIC
 	if (!generating_static) {

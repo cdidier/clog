@@ -19,12 +19,14 @@
 #define FILE_FORMAT "%Y%m%d%H%M"
 #define FILE_MINLEN 12
 
-typedef void (page_cb)(char *);
-typedef void (article_cb)(char *, char *, struct tm *, FILE *, uint);
-typedef void (article_tag_cb)(char *);
-typedef void (tag_cb)(char *, uint);
+typedef void (page_cb)(const char *);
+typedef void (article_cb)(const char *, const char *, const struct tm *,
+    FILE *, uint);
+typedef void (article_tag_cb)(const char *);
+typedef void (tag_cb)(const char *, uint);
 #ifdef ENABLE_COMMENTS
-typedef void (comment_cb)(char *, struct tm *, char *, char *, char *, FILE *);
+typedef void (comment_cb)(const char *, const struct tm *, const char *,
+    const char *, const char *, FILE *);
 #endif /* ENABLE_COMMENTS */
 
 struct cform {

@@ -36,12 +36,12 @@ static char rcsid[] = "$Id$";
 #if defined(ENABLE_COMMENTS) && defined(ENABLE_POST_COMMENT)
 
 #ifdef ENABLE_STATIC
-void update_static_article(char *);
+void update_static_article(const char *);
 #endif /* ENABLE_STATIC */
 
-void render_article(char *);
-void render_page(page_cb, char *);
-void redirect(char *);
+void render_article(const char *);
+void render_page(page_cb, const char *);
+void redirect(const char *);
 
 #define INPUT_JAM	"jam="
 #define INPUT_JAM_HASH	"jam_hash="
@@ -94,7 +94,7 @@ strchomp(char *s)
 }
 
 static int
-create_comments_dir(char *aname)
+create_comments_dir(const char *aname)
 {
 	struct stat st;
 	char path[MAXPATHLEN];
@@ -110,7 +110,7 @@ create_comments_dir(char *aname)
 }
 
 static void
-write_comment(char *aname, struct cform *cf)
+write_comment(const char *aname, struct cform *cf)
 {
 	struct stat st;
 	FILE *fout;
@@ -186,7 +186,7 @@ verify_jam(const char *jam, const char *hash)
 }
 
 void
-post_comment(char *aname)
+post_comment(const char *aname)
 {
 	char buf[MAX_INPUT_LEN];
 	size_t len;

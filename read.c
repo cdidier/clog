@@ -50,7 +50,7 @@ compar_name_desc(const FTSENT **f1, const FTSENT **f2)
 #ifdef ENABLE_COMMENTS
 
 static void
-read_comment(char *aname, char *cname, comment_cb cb)
+read_comment(const char *aname, const char *cname, comment_cb cb)
 {
 	FILE *fin;
 	char path[MAXPATHLEN], buf[BUFSIZ];
@@ -99,7 +99,7 @@ read_comment(char *aname, char *cname, comment_cb cb)
 }
 
 uint
-read_comments(char *aname, comment_cb cb)
+read_comments(const char *aname, comment_cb cb)
 {
 	FTS *fts;
 	FTSENT *e;
@@ -140,7 +140,7 @@ out:	fts_close(fts);
 #endif /* ENABLE_COMMENTS */
 
 uint
-read_article_tags(char *aname, article_tag_cb cb)
+read_article_tags(const char *aname, article_tag_cb cb)
 {
 	FTS *fts, *fts2;
 	FTSENT *e, *e2;
@@ -199,7 +199,7 @@ out:	fts_close(fts);
 }
 
 int
-read_article(char *aname, article_cb cb, char *atitle, size_t atitle_len)
+read_article(const char *aname, article_cb cb, char *atitle, size_t atitle_len)
 {
 	FILE *fin;
 	char path[MAXPATHLEN], title[BUFSIZ];
@@ -255,7 +255,7 @@ read_articles(article_cb cb)
 	char path[MAXPATHLEN];
 	char * const path_argv[] = { path, NULL };
 	long i;
-	extern char *tag;
+	extern const char *tag;
 	extern long offset;
 
 	if (tag != NULL) {
@@ -298,7 +298,7 @@ out:	fts_close(fts);
 }
 
 long
-read_page(char *aname)
+read_page(const char *aname)
 {
 	FTS *fts;
 	FTSENT *e;
@@ -306,7 +306,7 @@ read_page(char *aname)
 	char * const path_argv[] = { path, NULL };
 	int found;
 	ulong i;
-	extern char *tag;
+	extern const char *tag;
 
 	found = 0;
 	if (tag != NULL) {

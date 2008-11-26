@@ -29,10 +29,10 @@ static char rcsid[] = "$Id$";
 
 #include "common.h"
 
-void render_error(char *);
-void render_article(char *);
-void render_tags(char *);
-void render_page(page_cb, char *);
+void render_error(const char *);
+void render_article(const char *);
+void render_tags(const char *);
+void render_page(page_cb, const char *);
 void render_rss(void);
 
 #ifdef ENABLE_GZIP
@@ -41,20 +41,20 @@ gzFile	 gz;
 #endif /* ENABLE_GZIP */
 
 #if defined(ENABLE_COMMENTS) && defined(ENABLE_POST_COMMENT)
-void post_comment(char *);
+void post_comment(const char *);
 struct cform	comment_form;
 #endif /* ENABLE_POST_COMMENT */
 
 #ifdef ENABLE_STATIC
 void generate_static(void);
 void update_static(void);
-void update_static_article(char *);
+void update_static_article(const char *);
 int from_cmd, follow_url, generating_static;
 #endif /* ENABLE_STATIC */
 
-FILE	*hout;
-char	*tag;
-long	 offset;
+FILE		*hout;
+const char	*tag;
+long		 offset;
 
 static char *
 get_params(void)
@@ -101,17 +101,18 @@ enable_gzip(void)
 		return;
 	if (strstr(env, "gzip") == NULL)
 		return;
-	if ((gz = gzdopen(fileno(stdout), "wb9")) == NULL)
+	if ((gz = gzdopen(fileno(stdout), "wb9")) == NULL) {
 		if (errno != 0)
 			warn("gzdopen");
 		else
 			warnx("gzdopen");
+	}
 }
 
 #endif /* ENABLE_GZIP */
 
 void
-redirect(char *aname)
+redirect(const char *aname)
 {
 	fputs("Status: 302\r\nLocation: ", stdout);
 #ifdef ENABLE_STATIC
