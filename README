@@ -58,12 +58,12 @@ won't be at the same place. To fix this just modify CHROOT_DIR (in
 config.h).
 
 To generate all the static pages, you have to type this command:
-	env GEN_STATIC= ./blog.cgi
+	env GEN_STATIC= ./blog
 
 To update the static pages when you have written new articles:
-        env UP_STATIC= ./blog.cgi
+        env UP_STATIC= ./blog
 
 And to re-generate a specific article (which you have modified):
-	env UP_STATIC="<name of the directory of the article>" ./blog.cgi
+	env UP_STATIC="<name of the directory of the article>" ./blog
 For example:
-	env UP_STATIC="200811121418a" ./blog.cgi
+	env UP_STATIC="200811121418a" ./blog

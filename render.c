@@ -46,7 +46,7 @@ uint	read_comments(char *, comment_cb);
 #ifdef ENABLE_STATIC
 void	add_static_tag(char *, long);
 void	add_static_article(char *);
-extern int from_cmd;
+extern int from_cmd, generating_static;
 #endif /* ENABLE_STATIC */
 
 #define TAG "%%"
@@ -58,7 +58,11 @@ static void
 hputc(const char c)
 {
 #ifdef ENABLE_GZIP
+#ifdef ENABLE_STATIC
+	if (gz != NULL && !generating_static)
+#else
 	if (gz != NULL)
+#endif /* ENABLE_STATIC */
 		gzputc(gz, c);
 	else
 #endif /* ENABLE_GZIP */
@@ -69,7 +73,11 @@ static void
 hputs(const char *s)
 {
 #ifdef ENABLE_GZIP
+#ifdef ENABLE_STATIC
+	if (gz != NULL && !generating_static)
+#else
 	if (gz != NULL)
+#endif /* ENABLE_STATIC */
 		gzputs(gz, s);
 	else
 #endif /* ENABLE_GZIP */
@@ -80,7 +88,11 @@ static void
 hputd(const long long l)
 {
 #ifdef ENABLE_GZIP
+#ifdef ENABLE_STATIC
+	if (gz != NULL && !generating_static)
+#else
 	if (gz != NULL)
+#endif /* ENABLE_STATIC */
 		gzprintf(gz, "%lld", l);
 	else
 #endif /* ENABLE_GZIP */
@@ -115,7 +127,9 @@ hput_escaped(char *s)
 			hputs("&amp;");
 			break;
 		case '\n':
-			hputs("<br>");
+			hputs("<br>\n");
+			break;
+		case '\r':
 			break;
 		default:
 			hputc(c);
@@ -128,20 +142,16 @@ static void
 hput_url(char *first_level, char *second_level)
 {
 #ifdef ENABLE_STATIC
-	hputs(BASE_URL);
-#else
-	extern char *__progname;
+	extern int follow_url;
 
 	hputs(BASE_URL);
-	hputs(__progname);
+#else
+	hputs(BIN_URL);
 #endif /* ENABLE_STATIC */
 	if (first_level != NULL) {
-#ifdef ENABLE_STATIC
-	if (!from_cmd)
-		hputc('/');
-#else
+#ifndef ENABLE_STATIC
 	hputc('/');
-#endif /* ENABLE_STATIC */
+#endif /*! ENABLE_STATIC */
 		hputs(first_level);
 		if (second_level != NULL) {
 #ifdef ENABLE_STATIC
@@ -164,7 +174,7 @@ hput_url(char *first_level, char *second_level)
 #endif /* ENABLE_STATIC */
 	}
 #ifdef ENABLE_STATIC
-	if (first_level != NULL && second_level == NULL
+	if (follow_url && first_level != NULL && second_level == NULL
 	    && (strncmp(first_level, "20", 2) == 0
 	    || strncmp(first_level, "19", 2) == 0))
 		add_static_article(first_level);
@@ -174,6 +184,10 @@ hput_url(char *first_level, char *second_level)
 static void
 hput_pagelink(char *tname, long page, char *text)
 {
+#ifdef ENABLE_STATIC
+	extern int follow_url;
+#endif /* ENABLE_STATIC */
+
 	hputs("<a href=\"");
 #ifdef ENABLE_STATIC
 	hput_url(NULL, NULL);
@@ -205,7 +219,8 @@ hput_pagelink(char *tname, long page, char *text)
 	hputs(text);
 	hputs("</a>");
 #ifdef ENABLE_STATIC
-	add_static_tag(tname, page);
+	if (follow_url)
+		add_static_tag(tname, page);
 #endif /* ENABLE_STATIC */
 }
 
@@ -215,6 +230,15 @@ render_error(char *msg)
 	FILE *fin;
 	char buf[BUFSIZ], *a, *b;
 
+#ifdef ENABLE_STATIC
+	if (from_cmd) {
+		if ((fin = fopen(CHROOT_DIR TEMPLATES_DIR
+		    "/error.html", "r")) == NULL) {
+			warn("fopen: %s", CHROOT_DIR TEMPLATES_DIR
+			    "/error.html");
+		}
+	} else
+#endif /* ENABLE_STATIC */
 	if ((fin = fopen(TEMPLATES_DIR"/error.html", "r")) == NULL) {
 		warn("fopen: %s", TEMPLATES_DIR"/error.html");
 		return;
@@ -238,12 +262,12 @@ render_error(char *msg)
 }
 
 static void
-render_article_tag(char *tag)
+render_article_tag(char *tname)
 {
-	if (tag == NULL)
+	if (tname == NULL)
 		hputs("none");
 	else {
-		hput_pagelink(tag, 0, tag);
+		hput_pagelink(tname, 0, tname);
 		hputc(' ');
 	}
 }
@@ -344,7 +368,6 @@ render_comment_form(char *aname)
 	int jam1, jam2;
 	char salt[sizeof(JAM_SALT)+1], hash[SHA1_DIGEST_STRING_LENGTH];
 	extern struct cform comment_form;
-	extern char *__progname;
 
 #ifdef ENABLE_STATIC
 	if (from_cmd) {
@@ -376,9 +399,7 @@ render_comment_form(char *aname)
 				*b = '\0';
 				if (render_generic_markers(a));
 				else if (strcmp(a, "POST_URL") == 0) {
-					hputs(BASE_URL"/");
-					hputs(__progname);
-					hputc('/');
+					hputs(BIN_URL"/");
 					hputs(aname);
 				} else if (strcmp(a, "JAM_HASH") == 0)
 					hputs(hash);
@@ -618,11 +639,16 @@ render_page(page_cb cb, char *data)
 		return;
 	}
 #ifdef ENABLE_STATIC
-	if (!from_cmd) {
-		fputs("Content-type: text/html;charset="CHARSET"\r\n\r\n", hout);
+	if (!generating_static) {
+		if (gz != NULL)
+			fputs("Content-Encoding: gzip\r\n", stdout);
+		fputs("Content-type: text/html;"
+		    "charset="CHARSET"\r\n\r\n", hout);
 		fflush(hout);
 	}
 #else
+	if (gz != NULL)
+		fputs("Content-Encoding: gzip\r\n", stdout);
 	fputs("Content-type: text/html;charset="CHARSET"\r\n\r\n", hout);
 	fflush(hout);
 #endif /* ENABLE_STATIC */
@@ -711,12 +737,16 @@ render_rss(void)
 	extern char *tag;
 
 #ifdef ENABLE_STATIC
-	if (!from_cmd) {
-		fputs("Content-type: application/rss+xml;charset="CHARSET"\r\n\r\n",
-		    hout);
+	if (!generating_static) {
+		if (gz != NULL)
+			fputs("Content-Encoding: gzip\r\n", stdout);
+		fputs("Content-type: application/rss+xml;"
+		    "charset="CHARSET"\r\n\r\n", hout);
 		fflush(hout);
 	}
 #else
+	if (gz != NULL)
+		fputs("Content-Encoding: gzip\r\n", stdout);
 	fputs("Content-type: application/rss+xml;charset="CHARSET"\r\n\r\n",
 	    hout);
 	fflush(hout);

@@ -35,6 +35,10 @@ static char rcsid[] = "$Id$";
 
 #if defined(ENABLE_COMMENTS) && defined(ENABLE_POST_COMMENT)
 
+#ifdef ENABLE_STATIC
+void update_static_article(char *);
+#endif /* ENABLE_STATIC */
+
 void render_article(char *);
 void render_page(page_cb, char *);
 void redirect(char *);
@@ -106,7 +110,7 @@ create_comments_dir(char *aname)
 }
 
 static void
-write_comment(char *aname, struct cform *f)
+write_comment(char *aname, struct cform *cf)
 {
 	struct stat st;
 	FILE *fout;
@@ -141,19 +145,23 @@ write_comment(char *aname, struct cform *f)
 		if ((fout = fopen(path, "w")) == NULL)
 			goto err;
 	}
-	fprintf(fout, "%s%s\n", COMMENT_AUTHOR, f->name);
+	fprintf(fout, "%s%s\n", COMMENT_AUTHOR, cf->name);
 	fprintf(fout, "%s%s\n", COMMENT_IP, getenv("REMOTE_ADDR"));
-	if (f->mail != NULL && *f->mail != '\0')
-		fprintf(fout, "%s%s\n", COMMENT_MAIL, f->mail);
-	if (f->web != NULL && *f->web != '\0')
-		fprintf(fout, "%s%s\n", COMMENT_WEB, f->web);
+	if (cf->mail != NULL && *cf->mail != '\0')
+		fprintf(fout, "%s%s\n", COMMENT_MAIL, cf->mail);
+	if (cf->web != NULL && *cf->web != '\0')
+		fprintf(fout, "%s%s\n", COMMENT_WEB, cf->web);
 	fputc('\n', fout);
-	fputs(f->text, fout);
+	fputs(cf->text, fout);
 	fclose(fout);
+#ifdef ENABLE_STATIC
+	memset(cf, 0, sizeof(struct cform));
+	update_static_article(aname);
+#endif /* ENABLE_STATIC */
 	redirect(aname); 
 	return;
 err:
-	f->error = ERR_CFORM_WRITE;
+	cf->error = ERR_CFORM_WRITE;
 	render_page(render_article, aname);
 }
 
@@ -195,7 +203,7 @@ post_comment(char *aname)
 		comment_form.error = ERR_CFORM_LEN;
 		goto out;
 	}
-	if (fread(buf, len, 1, stdin) == NULL && !feof(stdin)) {
+	if (fread(buf, len, 1, stdin) == 0 && !feof(stdin)) {
 		warn("fread");
 		goto out;
 	}

@@ -48,8 +48,8 @@ struct cform	comment_form;
 #ifdef ENABLE_STATIC
 void generate_static(void);
 void update_static(void);
-int from_cmd;
-int gen;
+void update_static_article(char *);
+int from_cmd, follow_url, generating_static;
 #endif /* ENABLE_STATIC */
 
 FILE	*hout;
@@ -106,8 +106,6 @@ enable_gzip(void)
 			warn("gzdopen");
 		else
 			warnx("gzdopen");
-	else
-		fputs("Content-Encoding: gzip\r\n", stdout);
 }
 
 #endif /* ENABLE_GZIP */
@@ -115,22 +113,20 @@ enable_gzip(void)
 void
 redirect(char *aname)
 {
-#ifndef ENABLE_STATIC
-	extern char *__progname;
-#endif /* !ENABLE_STATIC */
-
-	fputs("Status: 302\r\nLocation: "BASE_URL, stdout);
-#ifndef ENABLE_STATIC
-	fputc('/', stdout);
-	fputs(__progname, stdout);
-#endif /* !ENABLE_STATIC */
+	fputs("Status: 302\r\nLocation: ", stdout);
+#ifdef ENABLE_STATIC
+	fputs(BASE_URL, stdout);
+	if (aname != NULL) {
+		fputs(aname, stdout);
+		fputs(".html", stdout);
+	}
+#else
+	fputs(BIN_URL, stdout);
 	if (aname != NULL) {
 		fputc('/', stdout);
 		fputs(aname, stdout);
-#ifdef ENABLE_STATIC
-		fputs(".html", stdout);
-#endif /* ENABLE_STATIC */
 	}
+#endif /* ENABLE_STATIC */
 	fputs("\r\n\r\n", stdout);
 	fflush(stdout);
 }
@@ -151,15 +147,28 @@ main(int argc, char **argv)
 	memset(&comment_form, 0, sizeof(struct cform));
 #endif /* POST_COMMENT */
 	parse_query();
+
 #ifdef ENABLE_STATIC
-	gen = from_cmd = 0;
+	generating_static = follow_url = from_cmd = 0;
 	if ((from_cmd = (getenv("GEN_STATIC") != NULL))) {
 		generate_static();
-	} else if ((from_cmd = from_cmd = (getenv("UP_STATIC") != NULL))) {
-		update_static();
+	} else if ((from_cmd = ((p = getenv("UP_STATIC")) != NULL))) {
+		if (p != NULL
+		    && (strncmp(p, "20", 2) == 0 || strncmp(p, "19", 2) == 0))
+			update_static_article(p);
+		else
+			update_static();
+#if defined(ENABLE_COMMENTS) && defined(ENABLE_POST_COMMENT)
+	} else if ((p = get_params()) != NULL
+	    && (strncmp(p, "20", 2) == 0 || strncmp(p, "19", 2) == 0)
+	    && strcmp(getenv("REQUEST_METHOD"), "POST") == 0) {
+		post_comment(p);
+#endif /* POST_COMMENT */
 	} else
 		redirect(NULL);
+
 #else
+
 	if ((p = get_params()) != NULL) {
 		if (strncmp(p, "20", 2) == 0 || strncmp(p, "19", 2) == 0) {
 #if defined(ENABLE_COMMENTS) && defined(ENABLE_POST_COMMENT)
@@ -183,11 +192,12 @@ main(int argc, char **argv)
 	} else
 		render_page(render_article, NULL);
 #endif /* ENABLE_STATIC */
+
 #ifdef ENABLE_GZIP
 	if (gz != NULL)
 		gzclose(gz);
 	else
 #endif /* ENABLE_GZIP */
-		fflush(stdout);
+		fflush(hout);
 	return 0;
 }
