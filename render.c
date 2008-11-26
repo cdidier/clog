@@ -287,9 +287,16 @@ render_generic_markers(const char *a)
 		hputs(COPYRIGHT);
 	else if (strcmp(a, "CHARSET") == 0)
 		hputs(CHARSET);
-	else if (strcmp(a, "RSS") == 0) {
+	else if (strcmp(a, "RSS_TITLE") == 0) {
+		hputs(SITE_NAME);
+		hputs(" RSS");
+		if (tag != NULL) {
+			hputs(" - tag:");
+			hputs(tag);
+		}
+	} else if (strcmp(a, "RSS_URL") == 0)
 		hput_url("rss", tag);
-	} else
+	else
 		return 0;
 	return 1;
 }
@@ -761,7 +768,7 @@ render_rss(void)
 	    "    <title>");
 	hputs(SITE_NAME);
 	if (tag != NULL) {
-		hputs(" - ");
+		hputs(" - tag:");
 		hputs(tag);
 	}
 	hputs("</title>\n"
