@@ -58,6 +58,40 @@ static SLIST_HEAD(, varticle) tovisit_articles;
 static SLIST_HEAD(, varticle) visited_articles;
 extern int from_cmd;
 
+static void
+clean_tags(void)
+{
+	struct vtag *vt, *next;
+
+	if (!SLIST_EMPTY(&visited_tags))
+		SLIST_INSERT_HEAD(&tovisit_tags, SLIST_FIRST(&visited_tags),
+		   next);
+	for (vt = SLIST_FIRST(&tovisit_tags); vt != NULL; vt = next) {
+		next = SLIST_NEXT(vt, next);
+		free(vt->tname);
+		free(vt);
+	}
+	SLIST_INIT(&tovisit_tags);
+	SLIST_INIT(&visited_tags);
+}
+
+static void
+clean_articles(void)
+{
+	struct varticle *va, *next;
+
+	if (!SLIST_EMPTY(&visited_articles))
+		SLIST_INSERT_HEAD(&tovisit_articles,
+		    SLIST_FIRST(&visited_articles), next);
+	for (va = SLIST_FIRST(&tovisit_articles); va != NULL; va = next) {
+		next = SLIST_NEXT(va, next);
+		free(va->aname);
+		free(va);
+	}
+	SLIST_INIT(&tovisit_articles);
+	SLIST_INIT(&visited_articles);
+}
+
 void
 add_static_tag(const char *tname, long page)
 {
@@ -260,6 +294,7 @@ update_static_article(const char *aname)
 		if (vt->page >= 0)
 			gen_index(vt->tname, vt->page);
 	}
+	clean_tags();
 	generating_static = 0;
 }
 
@@ -286,11 +321,13 @@ generate_static(void)
 		SLIST_REMOVE_HEAD(&tovisit_tags, next);
 		SLIST_INSERT_HEAD(&visited_tags, vt, next);
 	}
+	clean_tags();
 	while((va = SLIST_FIRST(&tovisit_articles)) != NULL) {
 		gen_article(va->aname);
 		SLIST_REMOVE_HEAD(&tovisit_articles, next);
 		SLIST_INSERT_HEAD(&visited_articles, va, next);
 	}
+	clean_articles();
 	gen_tags();
 }
 
