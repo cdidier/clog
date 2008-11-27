@@ -308,7 +308,7 @@ read_page(const char *aname)
 	ulong i;
 	extern const char *tag;
 
-	found = 0;
+	i = found = 0;
 	if (tag != NULL) {
 #ifdef ENABLE_STATIC
 		if (from_cmd)
@@ -337,7 +337,7 @@ read_page(const char *aname)
 		warn("fts_children: %s", path);
 		goto out;
 	}
-	for (i = 0; e != NULL; e = e->fts_link) {
+	for (; e != NULL; e = e->fts_link) {
 		if ((found = (strcmp(e->fts_name, aname) == 0)))
 			break;
 		++i;

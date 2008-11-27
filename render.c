@@ -25,7 +25,12 @@ static char rcsid[] = "$Id$";
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
+
+#ifndef LINUX
 #include <sha1.h>
+#else
+#include "openbsd-compat/sha1.h"
+#endif
 
 #include "common.h"
 

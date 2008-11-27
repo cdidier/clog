@@ -6,39 +6,43 @@ home-page: http://cvs.cybione.org/cvsweb/clog/?cvsroot=clog
 About:
 ======
 
+clog is a small, fast and well featured web log (blog) engine for those
+who like the command line and are not afraid of the C language.
 
+Main features:
+ - Dynamic or static page rendering
+ - Use templates to design pages
+ - Create, edit and manage articles using your favourite tools
+ (usually a text-based editor, e.g. vi)
+ - Comment posting (with a little anti-spam)
+ - Tags support and tag cloud
+ - RSS feeds (the main feed and a feed per tag)
+ - GZip compression
 
+Written in C and released under the ISC license.
 
 Installation:
 =============
 
+Edit the head of the Makefile to enable or disable some features.
 Edit the file config.h to configure the blog engine before compiling it.
 
-The to build it, just type (on *BSD):
+The to build it, just type:
 	make
-(on a Linux system, use pmake)
+Then put it everywhere you want and make sure that your HTTP server can
+execute it.
 
 File layout:
 ============
 
 
-Disabling comments:
+Writing an article:
 ===================
 
-You can disable comments (so you can't see and post them) by commenting
-the line where ENABLE_COMMENTS is defined (in config.h).
 
-Or simply disable the way to post comments (so you can see the comments
-posted before and you can't post new comment anymore) by commenting
-the line where ENABLE_POST_COMMENT is defined (in config.h).
+Customising the templates:
+==========================
 
-Disabling GZIP compression:
-===========================
-
-If you don't want the GZIP compression, you can disable it by
-commenting the line where ENABLE_GZIP is defined (in config.h).
-
-Then you must remove "-lz" from the variable LDFLAGS in the Makefile.
 
 Using static renderer:
 ======================
@@ -49,7 +53,8 @@ when a comment is posted. To enable the static mode, just define
 ENABLE_STATIC in the config.h file.
 
 Permissions consideration: The HTML and XML files in the directory
-BASE_DIR (in config.h) must be writable by the httpd user.
+BASE_DIR (in config.h) must be writable by the httpd user, to update them
+when a comment is posted.
 
 Chroot considerations: If you run your httpd server in a chroot, the
 root directory won't be the same if the blog engine is started by the
@@ -60,10 +65,12 @@ config.h).
 To generate all the static pages, you have to type this command:
 	env GEN_STATIC= ./blog
 
-To update the static pages when you have written new articles:
-        env UP_STATIC= ./blog
+To update the static pages when you have written new articles
+(NOT YET SUPPORTED):
+	env UP_STATIC= ./blog
 
 And to re-generate a specific article (which you have modified):
 	env UP_STATIC="<name of the directory of the article>" ./blog
 For example:
 	env UP_STATIC="200811121418a" ./blog
+If the article doesn't exist an empty page will be created.

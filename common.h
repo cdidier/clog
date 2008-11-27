@@ -9,6 +9,10 @@
 #include "config.h"
 #include "locale.h"
 
+#ifdef LINUX
+#include "openbsd-compat/openbsd-compat.h"
+#endif
+
 #define COMMENT_MAXLEN	51
 #define COMMENT_AUTHOR	"Author: "
 #define COMMENT_IP	"Ip: "
