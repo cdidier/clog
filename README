@@ -35,14 +35,111 @@ execute it.
 File layout:
 ============
 
+By default, the articles are stored in the directory ARTICLES_DIR
+(defined in config.h). In this directory every articles are put in their
+respective directory - named using the following format "YYYYMMDDHHmm"
+(this is the date of the article, you can append an arbitrary string if
+you want) - in a file named "article". The first line of the file is the
+title of the article and the rest is the content formatted in HTML. So
+articles should look like that:
+	ARTICLES_DIR/YYYYMMDDHHmm/article
+For example:
+	ARTICLES_DIR/200811121418/article
+	ARTICLES_DIR/200811121418a/article
+	ARTICLES_DIR/200811151212/article
 
-Writing an article:
-===================
+The comments are stored in the directory "comments" of the associated
+article directory, using the following format "YYYYMMDDHHmm[a-z]*". So
+comments should look like that:
+	ARTICLES_DIR/YYYYMMDDHHmm/comments/YYYYMMDDHHmm[a-z]*
+For example:
+	ARTICLES_DIR/200811121418a/comments/200811260712a
+	ARTICLES_DIR/200811121418a/comments/200811260712b
+	ARTICLES_DIR/200811121418a/comments/200811260712c
+	ARTICLES_DIR/200811121418a/comments/200811260737a
+	ARTICLES_DIR/200811121418a/comments/200811261134a
 
+/!\ Permissions consideration: The comments directories must be writable
+by the httpd user, to write the comment files.
+
+By default, the tags are stored in the directory TAGS_DIR (defined in
+config.h). In this directory a tag is a directory - named after the name
+of the tag (use only basic ASCII characters) - that contains links to
+the directory of the tagged articles (or simply empty files named
+after the directory name of the articles). So tags should look like that:
+	TAGS_DIR/<tag name>/<link to article>
+For example:
+	TAGS_DIR/life/200811121418a
+	TAGS_DIR/life/200811151212
+	TAGS_DIR/geek/200811121418a
 
 Customising the templates:
 ==========================
 
+In the directory TEMPLATES_DIR (defined in config.h), there is some HTML
+files which are only parts of a page. The blog engine will put together
+these templates and insert the data to design the pages. In order to
+know what to put where, the blog engine parses the templates to find
+markers, which look like that "%%MARKER_NAME%%".
+
+The file "TEMPLATES_DIR/page.html" contains the general design of the page.
+It can contains the following markers:
+	%%BODY%%	Contains the body of the page (indexes, articles, ...)
+	%%TITLE%%	The name of the page (prepended with " - ")
+	%%NEXT%%	A link to the next page
+	%%PREVIOUS%%	A link to the previous page
+The markers %%NEXT%% and %%PREVIOUS%% must be inserted after %%BODY%%.
+
+There is some markers that can be inserted in every templates:
+	%%BASE_URL%%	The URL of the blog
+	%%SITE_NAME%%	The name of the blog
+	%%DESCRIPTION%%	The description of the blog
+	%%COPYRIGHT%%	The copyright notice
+	%%CHARSET%%	The charset of the page
+	%%RSS_TITLE%%	The name of the RSS feed
+	%%RSS_URL%%	The URL of the RSS fed
+
+The file "TEMPLATES_DIR/article.html" contains an article. It can
+contains the following markers:
+	%%URL%%		The URL that points to the article
+	%%TITLE%%	The title of the article
+	%%DATE%%	The date of the article
+	%%TAGS%%	The links to the tags of the article
+	%%BODY%%	The actual content of the article
+	%%NB_COMMENTS%%	The number of comments
+
+The file "TEMPLATES_DIR/comments.html" contains the comments of an
+article. It can contains the following markers:
+	%%COMMENTS%%		The comments
+	%%COMMENT_FORM%%	The form to post a comment
+
+The file "TEMPLATES_DIR/comment.html" contains a comment. It can
+contains the following markers:
+	%%NAME%%	The name of the author of the comment
+	%%MAIL%%	The mail address of the author
+	%%WEB%%		The web page of the author
+	%%DATE%%	The date of the comment
+	%%TEXT%%	The actual content of the comment
+
+The file "TEMPLATES_DIR/comment_form.html" contains the form to post a
+comment. It can contains the following markers:
+	%%POST_URL%%	The URL of the blog binary to post the comment
+	%%JAM1%%	The first operand of the anti-spam
+	%%JAM2%%	The second operand of the anti-spam
+	%%JAM_HASH%%	An hidden field used by the anti-spam
+	%%FORM_ERROR%%	An error message
+	%%FORM_NAME%%
+	%%FORM_MAIL%%
+	%%FORM_WEB%%
+	%%FORM_TEXT%%
+
+The file "TEMPLATES_DIR/error.html" contains an error message. It can
+contains the following marker:
+	%%MESSAGE%%	The error message
+
+The file "TEMPLATES_DIR/tags.html" contains the tag cloud. It can
+contains the following marker:
+	%%TAGS%%	The links to the tags
 
 Using static renderer:
 ======================
@@ -52,11 +149,11 @@ pages of your blog. The the blog engine will automatically update them
 when a comment is posted. To enable the static mode, just define
 ENABLE_STATIC in the config.h file.
 
-Permissions consideration: The HTML and XML files in the directory
-BASE_DIR (in config.h) must be writable by the httpd user, to update them
-when a comment is posted.
+/!\ Permissions consideration: The HTML and XML files in the directory
+BASE_DIR (in config.h) must be writable by the httpd user, to update
+them when a comment is posted.
 
-Chroot considerations: If you run your httpd server in a chroot, the
+/!\ Chroot considerations: If you run your httpd server in a chroot, the
 root directory won't be the same if the blog engine is started by the
 httpd server or from the command line, so the templates and data files
 won't be at the same place. To fix this just modify CHROOT_DIR (in
@@ -66,7 +163,7 @@ To generate all the static pages, you have to type this command:
 	env GEN_STATIC= ./blog
 
 To update the static pages when you have written new articles
-(NOT YET SUPPORTED):
+(NOT YET SUPPORTED, use GEN_STATIC for the moment):
 	env UP_STATIC= ./blog
 
 And to re-generate a specific article (which you have modified):
