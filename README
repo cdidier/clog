@@ -171,3 +171,11 @@ And to re-generate a specific article (which you have modified):
 For example:
 	env UP_STATIC="200811121418a" ./blog
 If the article doesn't exist an empty page will be created.
+
+Author:
+=======
+
+Colin Didier <cdidier@cybione.org>
+
+Don't hesitate to contact me if you have any bug, suggestion or feedback
+to report.
