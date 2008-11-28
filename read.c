@@ -125,7 +125,8 @@ read_comments(const char *aname, comment_cb cb)
 			warn("fts_read: %s", path);
 		goto out;
 	} else if ((e = fts_children(fts, FTS_NAMEONLY)) == NULL) {
-		warn("fts_children: %s", path);
+		if (errno != 0)
+			warn("fts_children: %s", path);
 		goto out;
 	}
 	for (; e != NULL; e = e->fts_link) {
@@ -164,7 +165,8 @@ read_article_tags(const char *aname, article_tag_cb cb)
 			warn("fts_read: "TAGS_DIR);
 		goto out;
 	} else if ((e = fts_children(fts, FTS_NAMEONLY)) == NULL) {
-		warn("fts_children: "TAGS_DIR);
+		if (errno != 0)
+			warn("fts_children: "TAGS_DIR);
 		goto out;
 	}
 	for (; e != NULL; e = e->fts_link) {
@@ -180,7 +182,8 @@ read_article_tags(const char *aname, article_tag_cb cb)
 				warn("fts_read: %s", path);
 			goto out2;
 		} else if ((e2 = fts_children(fts2, FTS_NAMEONLY)) == NULL) {
-			warn("fts_children: %s", path);
+			if (errno != 0)
+				warn("fts_children: %s", path);
 			goto out2;
 		}
 		for (; e2 != NULL; e2 = e2->fts_link)
@@ -283,7 +286,8 @@ read_articles(article_cb cb)
 			warn("fts_read: %s", path);
 		goto out;
 	} else if ((e = fts_children(fts, FTS_NAMEONLY)) == NULL) {
-		warn("fts_children: %s", path);
+		if (errno != 0)
+			warn("fts_children: %s", path);
 		goto out;
 	}
 	for (i = 0; e != NULL && i++ < offset*NB_ARTICLES;)
@@ -334,7 +338,8 @@ read_page(const char *aname)
 			warn("fts_read: %s", path);
 		goto out;
 	} else if ((e = fts_children(fts, FTS_NAMEONLY)) == NULL) {
-		warn("fts_children: %s", path);
+		if (errno != 0)
+			warn("fts_children: %s", path);
 		goto out;
 	}
 	for (; e != NULL; e = e->fts_link) {
@@ -372,7 +377,8 @@ read_tags(tag_cb cb)
 			warn("fts_read: "TAGS_DIR);
 		goto out;
 	} else if ((e = fts_children(fts, FTS_NAMEONLY)) == NULL) {
-		warn("fts_children: "TAGS_DIR);
+		if (errno != 0)
+			warn("fts_children: "TAGS_DIR);
 		goto out;
 	}
 	for (; e != NULL; e = e->fts_link) {
@@ -388,7 +394,8 @@ read_tags(tag_cb cb)
 				warn("fts_read: %s", path);
 			goto out2;
 		} else if ((e2 = fts_children(fts2, FTS_NAMEONLY)) == NULL) {
-			warn("fts_children: %s", path);
+			if (errno != 0)
+				warn("fts_children: %s", path);
 			goto out2;
 		}
 		for (nb = 0; e2 != NULL; e2 = e2->fts_link)
