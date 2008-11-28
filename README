@@ -26,6 +26,7 @@ Installation:
 
 Edit the head of the Makefile to enable or disable some features.
 Edit the file config.h to configure the blog engine before compiling it.
+Edit the file locale.h if you want to translate the messages.
 
 The to build it, just type:
 	make
