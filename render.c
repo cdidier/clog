@@ -661,8 +661,10 @@ render_page(page_cb cb, const char *data)
 		fflush(hout);
 	}
 #else
+#ifdef ENABLE_GZIP
 	if (gz != NULL)
 		fputs("Content-Encoding: gzip\r\n", stdout);
+#endif /* ENABLE_GZIP */
 	fputs("Content-type: text/html;charset="CHARSET"\r\n\r\n", hout);
 	fflush(hout);
 #endif /* ENABLE_STATIC */
