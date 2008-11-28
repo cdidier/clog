@@ -715,6 +715,17 @@ render_page(page_cb cb, const char *data)
 #define RSS_DATE_LENGTH 32
 
 static void
+render_rss_article_tag(const char *tname)
+{
+	if (tname == NULL)
+		return;
+	hputs(
+	    "      <category>");
+	hputs(tname);
+	hputs("</category>\n");
+}
+
+static void
 render_rss_article(const char *aname, const char *title, const struct tm *tm,
     FILE *fbody, uint _)
 {
@@ -727,7 +738,9 @@ render_rss_article(const char *aname, const char *title, const struct tm *tm,
 	hputs("</title>\n"
 	    "      <link>");
 	hput_url(aname, NULL);
-	hputs("</link>\n"
+	hputs("</link>\n");
+	read_article_tags(aname, render_rss_article_tag);
+	hputs(
 	    "      <description>");
 	while (fgets(body, BUFSIZ, fbody) != NULL)
 		hputs(body);
