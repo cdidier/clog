@@ -7,7 +7,8 @@ About:
 ======
 
 clog is a small, fast and well featured web log (blog) engine for those
-who like the command line and are not afraid of the C language.
+who like the command line and are not afraid of the C language. It runs
+as a CGI binary.
 
 Main features:
  - Dynamic or static page rendering
