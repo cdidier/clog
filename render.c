@@ -743,11 +743,10 @@ render_rss_article(const char *aname, const char *title, const struct tm *tm,
 	hputs("</link>\n");
 	read_article_tags(aname, render_rss_article_tag);
 	hputs(
-	    "      <description>");
+	    "      <description><![CDATA[");
 	while (fgets(body, BUFSIZ, fbody) != NULL)
 		hputs(body);
-	hputs(
-	    "      </description>\n"
+	hputs("]]></description>\n"
 	    "      <pubDate>");
 	strftime(date, RSS_DATE_LENGTH, RSS_DATE_FORMAT, tm);
 	hputs(date);
