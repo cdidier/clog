@@ -170,6 +170,8 @@ read_article_tags(const char *aname, article_tag_cb cb)
 		goto out;
 	}
 	for (; e != NULL; e = e->fts_link) {
+		if (*e->fts_name == '.')
+			continue;
 		snprintf(path, MAXPATHLEN, "%s/%s", e->fts_accpath,
 		    e->fts_name);
 		if ((fts2 = fts_open(path_argv, FTS_LOGICAL|FTS_NOSTAT,
@@ -382,6 +384,8 @@ read_tags(tag_cb cb)
 		goto out;
 	}
 	for (; e != NULL; e = e->fts_link) {
+		if (*e->fts_name == '.')
+			continue;
 		snprintf(path, MAXPATHLEN, "%s/%s", e->fts_accpath,
 		    e->fts_name);
 		if ((fts2 = fts_open(path_argv, FTS_LOGICAL|FTS_NOSTAT,
