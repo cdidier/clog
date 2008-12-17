@@ -226,20 +226,14 @@ post_comment(const char *aname)
 			jam_hash = s+sizeof(INPUT_JAM_HASH)-1;
 		else if (strncmp(s, INPUT_NAME, sizeof(INPUT_NAME)-1) == 0) {
 			comment_form.name = s+sizeof(INPUT_NAME)-1;
-			comment_form.name[sizeof(INPUT_NAME)+INPUT_LEN]
-			    = '\0';
 			if ((nl = strchr(comment_form.name, '\n')) != NULL)
 				*nl = '\0';
 		} else if (strncmp(s, INPUT_MAIL, sizeof(INPUT_MAIL)-1) == 0) {
 			comment_form.mail = s+sizeof(INPUT_MAIL)-1;
-			comment_form.mail[sizeof(INPUT_MAIL)+INPUT_LEN]
-			    = '\0';
-			if ((nl = strchr(comment_form.name, '\n')) != NULL)
+			if ((nl = strchr(comment_form.mail, '\n')) != NULL)
 				*nl = '\0';
 		} else if (strncmp(s, INPUT_WEB, sizeof(INPUT_WEB)-1) == 0) {
 			comment_form.web = s+sizeof(INPUT_WEB)-1;
-			comment_form.web[sizeof(INPUT_WEB)+INPUT_LEN]
-			    = '\0';
 			if ((nl = strchr(comment_form.web, '\n')) != NULL)
 				*nl = '\0';
 		} else if (strncmp(s, INPUT_TEXT, sizeof(INPUT_TEXT)-1) == 0)
