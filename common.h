@@ -23,6 +23,12 @@
 #define FILE_FORMAT "%Y%m%d%H%M"
 #define FILE_MINLEN 12
 
+#ifdef ENABLE_STATIC
+#define MOD_FORMAT	"%a %b %e %H:%M:%S %Y"
+#define MOD_BEGIN	"<!-- $ModDate:"
+#define MOD_END		"$ !-->"
+#endif /* ENABLE_STATIC */
+
 typedef void (page_cb)(const char *);
 typedef void (article_cb)(const char *, const char *, const struct tm *,
     FILE *, uint);

@@ -49,6 +49,7 @@ uint	read_comments(const char *, comment_cb);
 #endif /* ENABLE_COMMENTS */
 
 #ifdef ENABLE_STATIC
+time_t	read_article_mtime(const char *);
 void	add_static_tag(const char *, long);
 void	add_static_article(const char *);
 extern int from_cmd, generating_static;
@@ -635,6 +636,9 @@ render_page(page_cb cb, const char *data)
 	char buf[BUFSIZ], *a, *b;
 	extern const char *tag;
 	extern long offset;
+#ifdef ENABLE_STATIC
+	time_t mtime;
+#endif /* ENABLE_STATIC */
 
 	nb_articles = 0;
 #ifdef ENABLE_STATIC
@@ -652,6 +656,7 @@ render_page(page_cb cb, const char *data)
 	}
 #ifdef ENABLE_STATIC
 	if (!generating_static) {
+#endif /* ENABLE_STATIC */
 #ifdef ENABLE_GZIP
 		if (gz != NULL)
 			fputs("Content-Encoding: gzip\r\n", stdout);
@@ -659,14 +664,16 @@ render_page(page_cb cb, const char *data)
 		fputs("Content-type: text/html;"
 		    "charset="CHARSET"\r\n\r\n", hout);
 		fflush(hout);
+#ifdef ENABLE_STATIC
 	}
-#else
-#ifdef ENABLE_GZIP
-	if (gz != NULL)
-		fputs("Content-Encoding: gzip\r\n", stdout);
-#endif /* ENABLE_GZIP */
-	fputs("Content-type: text/html;charset="CHARSET"\r\n\r\n", hout);
-	fflush(hout);
+	if (cb == render_article && data != NULL
+	    && (mtime = read_article_mtime(data)) != 0) {
+		strftime(buf, BUFSIZ, MOD_FORMAT, localtime(&mtime));
+		hputs(MOD_BEGIN);
+		hputs(buf);
+		hputs(MOD_END);
+		hputc('\n');
+	}
 #endif /* ENABLE_STATIC */
 	while (fgets(buf, BUFSIZ, fin) != NULL) {
 		buf[strcspn(buf, "\n")] = '\0';

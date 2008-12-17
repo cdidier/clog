@@ -203,6 +203,26 @@ out:	fts_close(fts);
 	return nb;
 }
 
+#ifdef ENABLE_STATIC
+
+time_t
+read_article_mtime(const char *aname)
+{
+	char path[MAXPATHLEN];
+	struct stat sb;
+
+	if (from_cmd)	
+		snprintf(path, MAXPATHLEN, CHROOT_DIR ARTICLES_DIR
+		    "/%s/article", aname);
+	else
+		snprintf(path, MAXPATHLEN, ARTICLES_DIR"/%s/article", aname);
+	if (stat(path, &sb) == -1)
+		return 0;
+	return sb.st_mtime;
+}
+
+#endif /* ENABLE_STATIC */
+
 int
 read_article(const char *aname, article_cb cb, char *atitle, size_t atitle_len)
 {

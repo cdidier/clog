@@ -21,6 +21,7 @@ static char rcsid[] = "$Id$";
 #endif
 
 #include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -34,12 +35,13 @@ static char rcsid[] = "$Id$";
 
 #ifdef ENABLE_STATIC
 
-void render_article(const char *);
-void render_tags(const char *);
-void render_page(page_cb, const char *);
-void render_rss(void);
-uint read_article_tags(const char *, article_tag_cb);
-long read_page(const char *);
+void	render_article(const char *);
+void	render_tags(const char *);
+void	render_page(page_cb, const char *);
+void	render_rss(void);
+uint	read_article_tags(const char *, article_tag_cb);
+time_t  read_article_mtime(const char *);
+long	read_page(const char *);
 
 struct vtag {
 	char	*tname;
@@ -149,6 +151,42 @@ add_static_article(const char *aname)
 	if ((va->aname = strdup(aname)) == NULL)
 		err(1, "strdup");
 	SLIST_INSERT_HEAD(&tovisit_articles, va, next);
+}
+
+static time_t
+get_article_mtime(const char *aname)
+{
+	char path[MAXPATHLEN], buf[BUFSIZ], *s, *end;
+	FILE *fin;
+	struct tm tm;
+
+	if (from_cmd)
+		snprintf(path, MAXPATHLEN, CHROOT_DIR BASE_DIR
+		    "/%s.html", aname);
+	else
+		snprintf(path, MAXPATHLEN, BASE_DIR"/%s.html", aname);
+	if ((fin = fopen(path, "r")) == NULL) {
+		if (errno != ENOENT)
+			warn("fopen: %s", path);
+		return 0;
+	}
+	if (fgets(buf, BUFSIZ, fin) == NULL && !feof(fin)) {
+		warn("fgets: %s", path);
+		fclose(fin);
+		return 0;
+	}
+	fclose(fin);
+	if ((s = strstr(buf, MOD_BEGIN)) == NULL)
+		return 0;
+	s += sizeof(MOD_BEGIN)-1;
+	if ((end = strstr(s, MOD_END)) == NULL)
+		return 0;
+	*end = '\0';
+	if (strptime(s, MOD_FORMAT, &tm) == NULL) {
+		warn("strptime");
+		return 0;
+	}
+	return mktime(&tm);
 }
 
 static void
