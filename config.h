@@ -8,8 +8,8 @@
 
 #define SITE_NAME	"C'log"
 #define DESCRIPTION	"Colin's web journal."
-#define COPYRIGHT	"Copyright &#169; 2008 <a href=\"mailto:cdidier+clog@cybione.org\">Colin Didier</a>; Tous droits réservés."
-#define CHARSET		"iso-8859-15"
+#define COPYRIGHT	"Copyright &#169; 2008 <a href=\"mailto:cdidier+clog@cybione.org\">Colin Didier</a>; All right reserved/Tous droits r&eacute;serv&eacute;s."
+#define CHARSET		"UTF-8"
 
 #ifdef ENABLE_STATIC
 #define CHROOT_DIR		"/var/www"
@@ -18,11 +18,11 @@
 /* Where the static pages are written */
 #define BASE_DIR	"/users/cdidier/log"
 /* Where the templates are stored */
-#define TEMPLATES_DIR	BASE_DIR"/templates"
+#define TEMPLATES_DIR	BASE_DIR"/src/templates"
 /* Where the articles are stored */
-#define ARTICLES_DIR	BASE_DIR"/data/articles"
+#define ARTICLES_DIR	BASE_DIR"/articles"
 /* Where the tags are stored */
-#define TAGS_DIR	BASE_DIR"/data/tags"
+#define TAGS_DIR	BASE_DIR"/tags"
 
 /* Number of articles per page (and also per RSS feed) */
 #define NB_ARTICLES	5
