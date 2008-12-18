@@ -35,6 +35,20 @@ static char rcsid[] = "$Id$";
 extern int from_cmd;
 #endif /* ENABLE_STATIC */
 
+struct data_foreach {
+	const char	*name;
+	union {
+		ulong	unb;
+		long	nb;
+		time_t	time;
+	};
+	union {
+		comment_cb	*c_cb;
+		article_tag_cb	*at_cb;
+		article_cb	*a_cb;
+	};
+};
+
 static int
 compar_name_asc(const FTSENT **f1, const FTSENT **f2)
 {
@@ -237,31 +251,26 @@ read_comment(const char *aname, const char *cname, comment_cb cb)
  *
  */
 
-struct data_read_comments {
-	comment_cb	*cb;
-	ulong		 nb;
-};
-
 int
 do_read_comments(const char *aname, const char *cname, void *data)
 {
-	struct data_read_comments *d = data;
+	struct data_foreach *d = data;
 
-	if (d->cb != NULL)
-		read_comment(aname, cname, d->cb);
-	++d->nb;
+	if (d->c_cb != NULL)
+		read_comment(aname, cname, d->c_cb);
+	++d->unb;
 	return 1;
 }
 
 ulong
 read_comments(const char *aname, comment_cb cb)
 {
-	struct data_read_comments d;
+	struct data_foreach d;
 
-	d.cb = cb;
-	d.nb = 0;
+	d.c_cb = cb;
+	d.unb = 0;
 	foreach_comment(aname, do_read_comments, &d);
-	return d.nb;
+	return d.unb;
 }
 
 #endif /* ENABLE_COMMENTS */
@@ -270,21 +279,15 @@ read_comments(const char *aname, comment_cb cb)
  *
  */
 
-struct data_read_article_tags {
-	article_tag_cb	*cb;
-	const char	*aname;
-	ulong		 nb;
-};
-
 static int
 do2_read_article_tags(const char *aname, void *data)
 {
-	struct data_read_article_tags *d = data;
+	struct data_foreach *d = data;
 	extern const char *tag;
 
-	if (strcmp(d->aname, aname) == 0) {
-		++d->nb;
-		d->cb(tag);
+	if (strcmp(d->name, aname) == 0) {
+		d->at_cb(tag);
+		++d->unb;
 	}
 	return 1;
 }
@@ -292,7 +295,6 @@ do2_read_article_tags(const char *aname, void *data)
 static int
 do_read_article_tags(const char *tname, void *data)
 {
-	struct data_read_article_tags *d = data;
 	const char *old_tag;
 	extern const char *tag;
 
@@ -306,13 +308,13 @@ do_read_article_tags(const char *tname, void *data)
 ulong
 read_article_tags(const char *aname, article_tag_cb cb)
 {
-	struct data_read_article_tags d;
+	struct data_foreach d;
 
-	d.cb = cb;
-	d.aname = aname;
-	d.nb = 0;
+	d.name = aname;
+	d.unb = 0;
+	d.at_cb = cb;
 	foreach_tag(do_read_article_tags, &d);
-	return d.nb;
+	return d.unb;
 }
 
 #ifdef ENABLE_STATIC
@@ -322,7 +324,35 @@ read_article_tags(const char *aname, article_tag_cb cb)
  */
 
 int
-do_read_article_mtime(const char *aname, const char *cname, void *data)
+do2_get_mtime_tags(const char *tname, void *data)
+{
+	char path[MAXPATHLEN];
+	struct data_foreach *d = data;
+	struct stat sb;
+	extern const char *tag;
+
+	snprintf(path, MAXPATHLEN, CHROOT_DIR TAGS_DIR
+	    "/%s/%s", tag, d->name);
+	if (stat(path, &sb) != -1 && sb.st_mtime > d->time)
+		d->time = sb.st_mtime;
+	return 1;
+}
+
+int
+do_get_mtime_tags(const char *tname, void *data)
+{
+	const char *old_tag;
+	extern const char *tag;
+
+	old_tag = tag;
+	tag = tname;
+	foreach_article(do2_get_mtime_tags, data);
+	tag = old_tag;
+	return 1;
+}
+
+int
+do_get_mtime_comments(const char *aname, const char *cname, void *data)
 {
 	char path[MAXPATHLEN];
 	struct stat sb;
@@ -336,25 +366,27 @@ do_read_article_mtime(const char *aname, const char *cname, void *data)
 }
 
 time_t
-read_article_mtime(const char *aname)
+get_mtime(const char *aname)
 {
 	char path[MAXPATHLEN];
+	struct data_foreach d;
 	struct stat sb;
-	time_t mtime;
 
 	snprintf(path, MAXPATHLEN, CHROOT_DIR ARTICLES_DIR
 	    "/%s/article", aname);
 	if (stat(path, &sb) == -1)
 		return 0;
-	mtime = sb.st_mtime;
+	d.time = sb.st_mtime;
 	snprintf(path, MAXPATHLEN, CHROOT_DIR ARTICLES_DIR
 		    "/%s/comments", aname);
 	if (stat(path, &sb) != -1) {
-		if (sb.st_mtime > mtime)
-			mtime = sb.st_mtime;
-		foreach_comment(aname, do_read_article_mtime, &mtime);
+		if (sb.st_mtime > d.time)
+			d.time = sb.st_mtime;
+		foreach_comment(aname, do_get_mtime_comments, &d.time);
 	}
-	return mtime;
+	d.name = aname;
+	foreach_tag(do_get_mtime_tags, &d);
+	return d.time;
 }
 
 #endif /* ENABLE_STATIC */
@@ -408,15 +440,10 @@ read_article(const char *aname, article_cb cb, char *atitle, size_t atitle_len)
  * Read every articles of ARTICLES_DIR or of TAGS_DIR.
  */
 
-struct data_read_articles {
-	article_cb	*cb;
-	long		 nb;
-};
-
 static int
 do_read_articles(const char *aname, void *data)
 {
-	struct data_read_articles *d = data;
+	struct data_foreach *d = data;
 	long nb;
 	extern long offset;
 
@@ -424,7 +451,7 @@ do_read_articles(const char *aname, void *data)
 	if (d->nb > nb+NB_ARTICLES)
 		return 0;
 	else if (d->nb >= nb)
-		read_article(aname, d->cb, NULL, 0);
+		read_article(aname, d->a_cb, NULL, 0);
 	++d->nb;
 	return 1;
 }
@@ -432,10 +459,10 @@ do_read_articles(const char *aname, void *data)
 void
 read_articles(article_cb cb)
 {
-	struct data_read_articles d;
+	struct data_foreach d;
 
-	d.cb = cb;
 	d.nb = 0;
+	d.a_cb = cb;
 	foreach_article(do_read_articles, &d);
 }
 
@@ -444,31 +471,26 @@ read_articles(article_cb cb)
  * If no article is specified, then it will get the total number of articles.
  */
 
-struct data_read_num_page {
-	const char	*aname;
-	long		nb;
-};
-
 static int
-do_read_num_page(const char *aname, void *data)
+do_get_page(const char *aname, void *data)
 {
-	struct data_read_num_page *d = data;
+	struct data_foreach *d = data;
 
-	if (d->aname != NULL
-	    && strcmp(aname, d->aname) == 0)
+	if (d->name != NULL
+	    && strcmp(aname, d->name) == 0)
 		return 0;
 	++d->nb;
 	return 1;
 }
 
 long
-read_num_page(const char *aname)
+get_page(const char *aname)
 {
-	struct data_read_num_page d;
+	struct data_foreach d;
 
-	d.aname = aname;
+	d.name = aname;
 	d.nb = 0;
-	if (!foreach_article(do_read_num_page, &d) || aname == NULL)
+	if (!foreach_article(do_get_page, &d) || aname == NULL)
 		return d.nb/NB_ARTICLES;
 	return -1;
 }

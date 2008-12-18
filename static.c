@@ -40,8 +40,8 @@ void	render_tags(const char *);
 void	render_page(page_cb, const char *);
 void	render_rss(void);
 ulong	read_article_tags(const char *, article_tag_cb);
-time_t  read_article_mtime(const char *);
-long	read_num_page(const char *);
+time_t  get_mtime(const char *);
+long	get_page(const char *);
 
 struct vtag {
 	char	*tname;
@@ -154,7 +154,7 @@ add_static_article(const char *aname)
 }
 
 static time_t
-get_static_article_mtime(const char *aname)
+get_static_mtime(const char *aname)
 {
 	char path[MAXPATHLEN], buf[BUFSIZ], *s, *end;
 	FILE *fin;
@@ -328,7 +328,7 @@ update_static_article(const char *aname)
 	read_article_tags(aname, update_static_article_add_tag);
 	SLIST_FOREACH(vt, &tovisit_tags, next) {
 		tag = vt->tname;
-		vt->page = read_num_page(aname);
+		vt->page = get_page(aname);
 		if (vt->page >= 0)
 			gen_index(vt->tname, vt->page);
 	}
@@ -343,8 +343,8 @@ update_static(void)
 	time_t mtime;
 
 	aname == NULL;
-	if ((mtime = get_static_article_mtime(aname)) == 0) {
-	} else (mtime != read_article_mtime(aname))
+	if ((mtime = get_static_mtime(aname)) == 0) {
+	} else (mtime != get_mtime(aname))
 		update_static_article(aname);*/
 }
 

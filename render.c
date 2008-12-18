@@ -49,7 +49,7 @@ ulong	read_comments(const char *, comment_cb);
 #endif /* ENABLE_COMMENTS */
 
 #ifdef ENABLE_STATIC
-time_t	read_article_mtime(const char *);
+time_t	get_mtime(const char *);
 void	add_static_tag(const char *, long);
 void	add_static_article(const char *);
 extern int from_cmd, generating_static;
@@ -664,7 +664,7 @@ render_page(page_cb cb, const char *data)
 #ifdef ENABLE_STATIC
 	}
 	if (from_cmd && cb == render_article && data != NULL
-	    && (mtime = read_article_mtime(data)) != 0) {
+	    && (mtime = get_mtime(data)) != 0) {
 		strftime(buf, BUFSIZ, MOD_FORMAT, localtime(&mtime));
 		hputs(MOD_BEGIN);
 		hputs(buf);
