@@ -39,7 +39,9 @@ typedef void (comment_cb)(const char *, const struct tm *, const char *,
     const char *, const char *, FILE *);
 #endif /* ENABLE_COMMENTS */
 
+typedef int (foreach_comment_cb)(const char *, const char *, void *);
 typedef int (foreach_article_cb)(const char *, void *);
+typedef int (foreach_tag_cb)(const char *, void *);
 
 struct cform {
 	char	*name;
