@@ -352,7 +352,7 @@ out:	fts_close(fts);
 }
 
 long
-read_page(const char *aname)
+read_num_page(const char *aname)
 {
 	FTS *fts;
 	FTSENT *e;
@@ -393,12 +393,13 @@ read_page(const char *aname)
 		goto out;
 	}
 	for (; e != NULL; e = e->fts_link) {
-		if ((found = (strcmp(e->fts_name, aname) == 0)))
+		if (aname != NULL
+		    && (found = (strcmp(e->fts_name, aname) == 0)))
 			break;
 		++i;
 	}
 out:	fts_close(fts);
-	if (found)
+	if (aname == NULL || found)
 		return i/NB_ARTICLES;
 	return -1;
 }

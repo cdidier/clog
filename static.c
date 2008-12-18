@@ -41,7 +41,7 @@ void	render_page(page_cb, const char *);
 void	render_rss(void);
 uint	read_article_tags(const char *, article_tag_cb);
 time_t  read_article_mtime(const char *);
-long	read_page(const char *);
+long	read_num_page(const char *);
 
 struct vtag {
 	char	*tname;
@@ -328,7 +328,7 @@ update_static_article(const char *aname)
 	read_article_tags(aname, update_static_article_add_tag);
 	SLIST_FOREACH(vt, &tovisit_tags, next) {
 		tag = vt->tname;
-		vt->page = read_page(aname);
+		vt->page = read_num_page(aname);
 		if (vt->page >= 0)
 			gen_index(vt->tname, vt->page);
 	}
