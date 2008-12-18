@@ -705,7 +705,7 @@ render_page(page_cb cb, const char *data)
 				    && offset > 0)
 					hput_pagelink(tag, offset-1, NAV_NEXT);
 				else if (strcmp(a, "PREVIOUS") == 0
-				    && nb_articles >= NB_ARTICLES)
+				    && nb_articles > NB_ARTICLES)
 					hput_pagelink(tag, offset+1, NAV_PREVIOUS);
 				else if (strcmp(a, "BODY") == 0 && cb != NULL)
 					cb(data);

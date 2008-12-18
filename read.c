@@ -449,7 +449,7 @@ do_read_articles(const char *aname, void *data)
 	extern long offset;
 
 	nb = offset*NB_ARTICLES;
-	if (d->nb > nb+NB_ARTICLES)
+	if (d->nb >= nb+NB_ARTICLES)
 		return 0;
 	else if (d->nb >= nb)
 		read_article(aname, d->a_cb, NULL, 0);

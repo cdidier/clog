@@ -48,7 +48,7 @@ struct cform	comment_form;
 #ifdef ENABLE_STATIC
 void generate_static(void);
 void update_static(void);
-void update_static_article(const char *);
+void update_static_article(const char *, int);
 int from_cmd, follow_url, generating_static;
 #endif /* ENABLE_STATIC */
 
@@ -156,7 +156,7 @@ main(int argc, char **argv)
 	} else if ((from_cmd = ((p = getenv("UP_STATIC")) != NULL))) {
 		if (p != NULL
 		    && (strncmp(p, "20", 2) == 0 || strncmp(p, "19", 2) == 0))
-			update_static_article(p);
+			update_static_article(p, 1);
 		else
 			update_static();
 #if defined(ENABLE_COMMENTS) && defined(ENABLE_POST_COMMENT)

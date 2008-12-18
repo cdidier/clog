@@ -41,7 +41,7 @@ static char rcsid[] = "$Id$";
 #if defined(ENABLE_COMMENTS) && defined(ENABLE_POST_COMMENT)
 
 #ifdef ENABLE_STATIC
-void update_static_article(const char *);
+void update_static_article(const char *, int);
 #endif /* ENABLE_STATIC */
 
 void render_article(const char *);
@@ -161,7 +161,7 @@ write_comment(const char *aname, struct cform *cf)
 	fclose(fout);
 #ifdef ENABLE_STATIC
 	memset(cf, 0, sizeof(struct cform));
-	update_static_article(aname);
+	update_static_article(aname, 0);
 #endif /* ENABLE_STATIC */
 	redirect(aname); 
 	return;

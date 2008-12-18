@@ -39,6 +39,7 @@ void	render_article(const char *);
 void	render_tags(const char *);
 void	render_page(page_cb, const char *);
 void	render_rss(void);
+int	foreach_article(foreach_article_cb cb, void *data);
 ulong	read_article_tags(const char *, article_tag_cb);
 time_t  get_mtime(const char *);
 long	get_page(const char *);
@@ -182,6 +183,7 @@ get_static_mtime(const char *aname)
 	if ((end = strstr(s, MOD_END)) == NULL)
 		return 0;
 	*end = '\0';
+	memset(&tm, 0, sizeof(struct tm));
 	if (strptime(s, MOD_FORMAT, &tm) == NULL) {
 		warn("strptime");
 		return 0;
@@ -314,9 +316,10 @@ update_static_article_add_tag(const char *tname)
 }
 
 void
-update_static_article(const char *aname)
+update_static_article(const char *aname, int new)
 {
 	struct vtag *vt;
+	long i, pages;
 	extern const char *tag;
 	extern int generating_static;
 
@@ -328,24 +331,41 @@ update_static_article(const char *aname)
 	read_article_tags(aname, update_static_article_add_tag);
 	SLIST_FOREACH(vt, &tovisit_tags, next) {
 		tag = vt->tname;
-		vt->page = get_page(aname);
-		if (vt->page >= 0)
+		if (new) {
+			pages = get_page(NULL);
+			for (i = 0; i <= pages; ++i)
+				gen_index(vt->tname, i);
+		} else {
+			vt->page = get_page(vt->tname);
 			gen_index(vt->tname, vt->page);
+		}
 	}
 	clean_tags();
 	generating_static = 0;
 }
 
+static int
+do_update_static(const char *aname, void *data)
+{
+	time_t mtime;
+	int *mod = data;
+
+	if ((mtime = get_static_mtime(aname)) == 0
+	    || mtime != get_mtime(aname)) {
+		update_static_article(aname, 1);
+		*mod = 1;
+	}
+	return 1;
+}
+
 void
 update_static(void)
 {
-/*	char *aname;
-	time_t mtime;
+	int mod = 0;
 
-	aname == NULL;
-	if ((mtime = get_static_mtime(aname)) == 0) {
-	} else (mtime != get_mtime(aname))
-		update_static_article(aname);*/
+	foreach_article(do_update_static, &mod);
+	if (mod)
+		gen_tags();	
 }
 
 void
