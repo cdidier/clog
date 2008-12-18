@@ -36,7 +36,7 @@ static char rcsid[] = "$Id$";
 
 int	read_article(const char *, article_cb, char *, size_t);
 void	read_articles(article_cb);
-uint	read_article_tags(const char *, article_tag_cb);
+ulong	read_article_tags(const char *, article_tag_cb);
 void	read_tags(tag_cb);
 
 #ifdef ENABLE_GZIP
@@ -45,7 +45,7 @@ extern gzFile	 gz;
 #endif /* ENABLE_GZIP */
 
 #ifdef ENABLE_COMMENTS
-uint	read_comments(const char *, comment_cb);
+ulong	read_comments(const char *, comment_cb);
 #endif /* ENABLE_COMMENTS */
 
 #ifdef ENABLE_STATIC
@@ -270,12 +270,8 @@ render_error(const char *msg)
 static void
 render_article_tag(const char *tname)
 {
-	if (tname == NULL)
-		hputs("none");
-	else {
-		hput_pagelink(tname, 0, tname);
-		hputc(' ');
-	}
+	hput_pagelink(tname, 0, tname);
+	hputc(' ');
 }
 
 static int
@@ -533,8 +529,9 @@ render_article_content(const char *aname, const char *title,
 					    TIME_FORMAT, tm);
 					hputs(date);
 				} else if (strcmp(a, "TAGS") == 0) {
-					read_article_tags(aname,
-					    render_article_tag);
+					if (read_article_tags(aname,
+					    render_article_tag) == 0)
+						hputs(NO_TAG);
 				} else if (strcmp(a, "BODY") == 0) {
 					while (fgets(body, BUFSIZ,
 					    fbody) != NULL)

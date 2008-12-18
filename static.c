@@ -39,7 +39,7 @@ void	render_article(const char *);
 void	render_tags(const char *);
 void	render_page(page_cb, const char *);
 void	render_rss(void);
-uint	read_article_tags(const char *, article_tag_cb);
+ulong	read_article_tags(const char *, article_tag_cb);
 time_t  read_article_mtime(const char *);
 long	read_num_page(const char *);
 
@@ -154,7 +154,7 @@ add_static_article(const char *aname)
 }
 
 static time_t
-get_article_mtime(const char *aname)
+get_static_article_mtime(const char *aname)
 {
 	char path[MAXPATHLEN], buf[BUFSIZ], *s, *end;
 	FILE *fin;
@@ -339,6 +339,13 @@ update_static_article(const char *aname)
 void
 update_static(void)
 {
+/*	char *aname;
+	time_t mtime;
+
+	aname == NULL;
+	if ((mtime = get_static_article_mtime(aname)) == 0) {
+	} else (mtime != read_article_mtime(aname))
+		update_static_article(aname);*/
 }
 
 void

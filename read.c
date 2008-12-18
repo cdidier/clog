@@ -239,7 +239,7 @@ read_comment(const char *aname, const char *cname, comment_cb cb)
 
 struct data_read_comments {
 	comment_cb	*cb;
-	uint		 nb;
+	ulong		 nb;
 };
 
 int
@@ -253,7 +253,7 @@ do_read_comments(const char *aname, const char *cname, void *data)
 	return 1;
 }
 
-uint
+ulong
 read_comments(const char *aname, comment_cb cb)
 {
 	struct data_read_comments d;
@@ -270,67 +270,49 @@ read_comments(const char *aname, comment_cb cb)
  *
  */
 
-uint
+struct data_read_article_tags {
+	article_tag_cb	*cb;
+	const char	*aname;
+	ulong		 nb;
+};
+
+static int
+do2_read_article_tags(const char *aname, void *data)
+{
+	struct data_read_article_tags *d = data;
+	extern const char *tag;
+
+	if (strcmp(d->aname, aname) == 0) {
+		++d->nb;
+		d->cb(tag);
+	}
+	return 1;
+}
+
+static int
+do_read_article_tags(const char *tname, void *data)
+{
+	struct data_read_article_tags *d = data;
+	const char *old_tag;
+	extern const char *tag;
+
+	old_tag = tag;
+	tag = tname;
+	foreach_article(do2_read_article_tags, data);
+	tag = old_tag;
+	return 1;
+}
+
+ulong
 read_article_tags(const char *aname, article_tag_cb cb)
 {
-	FTS *fts, *fts2;
-	FTSENT *e, *e2;
-	char path[MAXPATHLEN];
-	char * const path_argv[] = { path, NULL };
-	uint nb;
+	struct data_read_article_tags d;
 
-	nb = 0;
-#ifdef ENABLE_STATIC
-	if (from_cmd)
-		strlcpy(path, CHROOT_DIR TAGS_DIR, MAXPATHLEN);
-	else
-#endif /* ENABLE_STATIC */
-		strlcpy(path, TAGS_DIR, MAXPATHLEN);
-	if ((fts = fts_open(path_argv, FTS_LOGICAL|FTS_NOSTAT,
-	    compar_name_asc)) == NULL) {
-		warn("fts_open: "TAGS_DIR);
-		return 0;
-	} else if ((e = fts_read(fts)) == NULL || !(e->fts_info & FTS_D)) {
-		if (errno != ENOENT)
-			warn("fts_read: "TAGS_DIR);
-		goto out;
-	} else if ((e = fts_children(fts, FTS_NAMEONLY)) == NULL) {
-		if (errno != 0)
-			warn("fts_children: "TAGS_DIR);
-		goto out;
-	}
-	for (; e != NULL; e = e->fts_link) {
-		if (*e->fts_name == '.')
-			continue;
-		snprintf(path, MAXPATHLEN, "%s/%s", e->fts_accpath,
-		    e->fts_name);
-		if ((fts2 = fts_open(path_argv, FTS_LOGICAL|FTS_NOSTAT,
-		    compar_name_asc)) == NULL) {
-			warn("fts_open: %s", path);
-			continue;
-		} else if ((e2 = fts_read(fts2)) == NULL
-		    || !(e2->fts_info & FTS_D)) {
-			if (errno != ENOENT)
-				warn("fts_read: %s", path);
-			goto out2;
-		} else if ((e2 = fts_children(fts2, FTS_NAMEONLY)) == NULL) {
-			if (errno != 0)
-				warn("fts_children: %s", path);
-			goto out2;
-		}
-		for (; e2 != NULL; e2 = e2->fts_link)
-			if (strcmp(e2->fts_name, aname) == 0) {
-				if (cb != NULL)
-					cb(e->fts_name);
-				++nb;
-				goto out2;
-			}
-out2:		fts_close(fts2);
-	}
-out:	fts_close(fts);	
-	if (nb == 0 && cb != NULL)
-		cb(NULL);
-	return nb;
+	d.cb = cb;
+	d.aname = aname;
+	d.nb = 0;
+	foreach_tag(do_read_article_tags, &d);
+	return d.nb;
 }
 
 #ifdef ENABLE_STATIC

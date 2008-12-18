@@ -3,6 +3,8 @@
 #define NAV_NEXT	"next"
 #define NAV_PREVIOUS	"previous"
 
+#define NO_TAG		"none"
+
 #define ERR_PAGE_UNKNOWN	"Unknown request!"
 #define ERR_PAGE_ARTICLE	"The requested article does not exists!"
 
