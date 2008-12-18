@@ -46,6 +46,7 @@ struct data_foreach {
 		comment_cb	*c_cb;
 		article_tag_cb	*at_cb;
 		article_cb	*a_cb;
+		tag_cb		*t_cb;
 	};
 };
 
@@ -511,7 +512,7 @@ do2_read_tags(const char *aname, void *data)
 static int
 do_read_tags(const char *tname, void *data)
 {
-	tag_cb *cb = data;
+	struct data_foreach *d = data;
 	const char *old_tag;
 	extern const char *tag;
 	uint nb;
@@ -521,12 +522,15 @@ do_read_tags(const char *tname, void *data)
 	tag = tname;
 	foreach_article(do2_read_tags, &nb);
 	tag = old_tag;
-	cb(tname, nb);
+	d->t_cb(tname, nb);
 	return 1;
 }
 
 void
 read_tags(tag_cb cb)
 {
-	foreach_tag(do_read_tags, cb);
+	struct data_foreach d;
+
+	d.t_cb = cb;
+	foreach_tag(do_read_tags, &d);
 }
