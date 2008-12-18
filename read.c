@@ -119,8 +119,7 @@ read_comments(const char *aname, comment_cb cb)
 	    compar_name_asc)) == NULL) {
 		warn("fts_open: %s", path);
 		return 0;
-	}
-	else if ((e = fts_read(fts)) == NULL || !(e->fts_info & FTS_D)) {
+	} else if ((e = fts_read(fts)) == NULL || !(e->fts_info & FTS_D)) {
 		if (errno != ENOENT)
 			warn("fts_read: %s", path);
 		goto out;
@@ -208,17 +207,46 @@ out:	fts_close(fts);
 time_t
 read_article_mtime(const char *aname)
 {
+	FTS *fts;
+	FTSENT *e;
 	char path[MAXPATHLEN];
+	char * const path_argv[] = { path, NULL };
 	struct stat sb;
+	time_t mtime;
 
-	if (from_cmd)	
-		snprintf(path, MAXPATHLEN, CHROOT_DIR ARTICLES_DIR
-		    "/%s/article", aname);
-	else
-		snprintf(path, MAXPATHLEN, ARTICLES_DIR"/%s/article", aname);
+	snprintf(path, MAXPATHLEN, CHROOT_DIR ARTICLES_DIR
+	    "/%s/article", aname);
 	if (stat(path, &sb) == -1)
 		return 0;
-	return sb.st_mtime;
+	mtime = sb.st_mtime;
+	snprintf(path, MAXPATHLEN, CHROOT_DIR ARTICLES_DIR
+		    "/%s/comments", aname);
+	if (stat(path, &sb) != -1) {
+		if (sb.st_mtime > mtime)
+			mtime = sb.st_mtime;
+		if ((fts = fts_open(path_argv, FTS_LOGICAL,
+		    compar_name_asc)) == NULL) {
+			warn("fts_open: %s", path);
+			return mtime;
+		} else if ((e = fts_read(fts)) == NULL
+		    || !(e->fts_info & FTS_D)) {
+			if (errno != ENOENT)
+				warn("fts_read: %s", path);
+			goto out;
+		} else if ((e = fts_children(fts, FTS_NAMEONLY)) == NULL) {
+			if (errno != 0)
+				warn("fts_children: %s", path);
+			goto out;
+		}
+		for (; e != NULL; e = e->fts_link) {
+			snprintf(path, MAXPATHLEN, "%s/%s",
+			    e->fts_path, e->fts_name);
+			if (stat(path, &sb) != -1 && sb.st_mtime > mtime)
+				mtime = sb.st_mtime;
+		}
+out:		fts_close(fts);
+	}
+	return mtime;
 }
 
 #endif /* ENABLE_STATIC */

@@ -666,7 +666,7 @@ render_page(page_cb cb, const char *data)
 		fflush(hout);
 #ifdef ENABLE_STATIC
 	}
-	if (cb == render_article && data != NULL
+	if (from_cmd && cb == render_article && data != NULL
 	    && (mtime = read_article_mtime(data)) != 0) {
 		strftime(buf, BUFSIZ, MOD_FORMAT, localtime(&mtime));
 		hputs(MOD_BEGIN);
