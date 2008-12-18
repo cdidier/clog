@@ -292,115 +292,129 @@ read_article(const char *aname, article_cb cb, char *atitle, size_t atitle_len)
 	return 0;
 }
 
-static int
-look_like_an_article(FTSENT *e)
+
+
+int
+foreach_article(foreach_article_cb cb, void *data)
 {
-	return (e->fts_info & FTS_D) && e->fts_namelen >= FILE_MINLEN
-	    && (strncmp(e->fts_name, "20", 2) == 0
-	    || strncmp(e->fts_name, "19", 2) == 0);
+	FTS *fts;
+	FTSENT *e;
+	char path[MAXPATHLEN];
+	char * const path_argv[] = { path, NULL };
+	extern const char *tag;
+
+	if (tag != NULL) {
+#ifdef ENABLE_STATIC
+		if (from_cmd)
+			snprintf(path, MAXPATHLEN, CHROOT_DIR TAGS_DIR
+			    "/%s", tag);
+		else
+#endif /* ENABLE_STATIC */
+			snprintf(path, MAXPATHLEN, TAGS_DIR"/%s", tag);
+	} else {
+#ifdef ENABLE_STATIC
+		if (from_cmd)
+			strlcpy(path, CHROOT_DIR ARTICLES_DIR, MAXPATHLEN);
+		else
+#endif /* ENABLE_STATIC */
+			strlcpy(path, ARTICLES_DIR, MAXPATHLEN);
+	}
+	if ((fts = fts_open(path_argv, FTS_LOGICAL|FTS_NOSTAT,
+	    compar_name_desc)) == NULL) {
+		warn("fts_open: %s", path);
+		return 0;
+	} else if ((e = fts_read(fts)) == NULL || !(e->fts_info & FTS_D)) {
+		if (errno != ENOENT)
+			warn("fts_read: %s", path);
+		goto out;
+	} else if ((e = fts_children(fts, FTS_NAMEONLY)) == NULL) {
+		if (errno != 0)
+			warn("fts_children: %s", path);
+		goto out;
+	}
+	for (; e != NULL; e = e->fts_link)
+		/* if it looks like an article */
+		if ((e->fts_info & FTS_D) && e->fts_namelen >= FILE_MINLEN
+		    && (strncmp(e->fts_name, "20", 2) == 0)
+		    && (strncmp(e->fts_name, "20", 2) == 0))
+			if (!cb(e->fts_name, data))
+				return 0;
+	return 1;
+out:	fts_close(fts);
+	return 0;
+}
+
+
+
+
+
+
+/*
+ * Read every articles of ARTICLES_DIR or of TAGS_DIR.
+ */
+
+struct data_read_articles {
+	article_cb	*cb;
+	long		 nb;
+};
+
+static int
+do_read_articles(const char *aname, void *data)
+{
+	struct data_read_articles *d = data;
+	long nb;
+	extern long offset;
+
+	nb = offset*NB_ARTICLES;
+	if (d->nb > nb+NB_ARTICLES)
+		return 0;
+	else if (d->nb >= nb)
+		read_article(aname, d->cb, NULL, 0);
+	++d->nb;
+	return 1;
 }
 
 void
 read_articles(article_cb cb)
 {
-	FTS *fts;
-	FTSENT *e;
-	char path[MAXPATHLEN];
-	char * const path_argv[] = { path, NULL };
-	long i;
-	extern const char *tag;
-	extern long offset;
+	struct data_read_articles d;
 
-	if (tag != NULL) {
-#ifdef ENABLE_STATIC
-		if (from_cmd)
-			snprintf(path, MAXPATHLEN, CHROOT_DIR TAGS_DIR
-			    "/%s", tag);
-		else
-#endif /* ENABLE_STATIC */
-			snprintf(path, MAXPATHLEN, TAGS_DIR"/%s", tag);
-	} else {
-#ifdef ENABLE_STATIC
-		if (from_cmd)
-			strlcpy(path, CHROOT_DIR ARTICLES_DIR, MAXPATHLEN);
-		else
-#endif /* ENABLE_STATIC */
-			strlcpy(path, ARTICLES_DIR, MAXPATHLEN);
-	}
-	if ((fts = fts_open(path_argv, FTS_LOGICAL|FTS_NOSTAT,
-	    compar_name_desc)) == NULL) {
-		warn("fts_open: %s", path);
-		return;
-	} else if ((e = fts_read(fts)) == NULL || !(e->fts_info & FTS_D)) {
-		if (errno != ENOENT)
-			warn("fts_read: %s", path);
-		goto out;
-	} else if ((e = fts_children(fts, FTS_NAMEONLY)) == NULL) {
-		if (errno != 0)
-			warn("fts_children: %s", path);
-		goto out;
-	}
-	for (i = 0; e != NULL && i++ < offset*NB_ARTICLES;)
-		if (look_like_an_article(e))
-			e = e->fts_link;
-	for (i = 0; e != NULL && i++ < NB_ARTICLES; e = e->fts_link) {
-		if (!look_like_an_article(e))
-	    		continue;
-		read_article(e->fts_name, cb, NULL, 0);
-	}
-out:	fts_close(fts);	
+	d.cb = cb;
+	d.nb = 0;
+	foreach_article(do_read_articles, &d);
+}
+
+/*
+ * Get the number of the page of an article in ARTICLES_DIR or in TAGS_DIR.
+ * If no article is specified, then it will get the total number of articles.
+ */
+
+struct data_read_num_page {
+	const char	*aname;
+	long		nb;
+};
+
+static int
+do_read_num_page(const char *aname, void *data)
+{
+	struct data_read_num_page *d = data;
+
+	if (d->aname != NULL
+	    && strcmp(aname, d->aname) == 0)
+		return 0;
+	++d->nb;
+	return 1;
 }
 
 long
 read_num_page(const char *aname)
 {
-	FTS *fts;
-	FTSENT *e;
-	char path[MAXPATHLEN];
-	char * const path_argv[] = { path, NULL };
-	int found;
-	ulong i;
-	extern const char *tag;
+	struct data_read_num_page d;
 
-	i = found = 0;
-	if (tag != NULL) {
-#ifdef ENABLE_STATIC
-		if (from_cmd)
-			snprintf(path, MAXPATHLEN, CHROOT_DIR TAGS_DIR
-			    "/%s", tag);
-		else
-#endif /* ENABLE_STATIC */
-			snprintf(path, MAXPATHLEN, TAGS_DIR"/%s", tag);
-	} else {
-#ifdef ENABLE_STATIC
-		if (from_cmd)
-			strlcpy(path, CHROOT_DIR ARTICLES_DIR, MAXPATHLEN);
-		else
-#endif /* ENABLE_STATIC */
-			strlcpy(path, ARTICLES_DIR, MAXPATHLEN);
-	}
-	if ((fts = fts_open(path_argv, FTS_LOGICAL|FTS_NOSTAT,
-	    compar_name_desc)) == NULL) {
-		warn("fts_open: %s", path);
-		return -1;
-	} else if ((e = fts_read(fts)) == NULL || !(e->fts_info & FTS_D)) {
-		if (errno != ENOENT)
-			warn("fts_read: %s", path);
-		goto out;
-	} else if ((e = fts_children(fts, FTS_NAMEONLY)) == NULL) {
-		if (errno != 0)
-			warn("fts_children: %s", path);
-		goto out;
-	}
-	for (; e != NULL; e = e->fts_link) {
-		if (aname != NULL
-		    && (found = (strcmp(e->fts_name, aname) == 0)))
-			break;
-		++i;
-	}
-out:	fts_close(fts);
-	if (aname == NULL || found)
-		return i/NB_ARTICLES;
+	d.aname = aname;
+	d.nb = 0;
+	if (!foreach_article(do_read_num_page, &d) || aname == NULL)
+		return d.nb/NB_ARTICLES;
 	return -1;
 }
 
