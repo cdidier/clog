@@ -24,6 +24,7 @@ static char rcsid[] = "$Id$";
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/param.h>
 #include <sys/types.h>
 
 #ifndef LINUX
@@ -230,25 +231,32 @@ hput_pagelink(const char *tname, long page, const char *text)
 #endif /* ENABLE_STATIC */
 }
 
+static FILE *
+open_template(const char *file)
+{
+	FILE *fin;
+	char path[MAXPATHLEN];
+
+#ifdef ENABLE_STATIC
+	if (from_cmd)
+		snprintf(path, MAXPATHLEN, CHROOT_DIR TEMPLATES_DIR "/%s",
+		   file);
+	else
+#endif /* ENABLE_STATIC */
+		snprintf(path, MAXPATHLEN, TEMPLATES_DIR "/%s", file);
+	if ((fin = fopen(path, "r")) == NULL)
+		 warn("fopen: %s", path);
+	return fin;
+}
+
 void
 render_error(const char *msg)
 {
 	FILE *fin;
 	char buf[BUFSIZ], *a, *b;
 
-#ifdef ENABLE_STATIC
-	if (from_cmd) {
-		if ((fin = fopen(CHROOT_DIR TEMPLATES_DIR
-		    "/error.html", "r")) == NULL) {
-			warn("fopen: %s", CHROOT_DIR TEMPLATES_DIR
-			    "/error.html");
-		}
-	} else
-#endif /* ENABLE_STATIC */
-	if ((fin = fopen(TEMPLATES_DIR"/error.html", "r")) == NULL) {
-		warn("fopen: %s", TEMPLATES_DIR"/error.html");
+	if ((fin = open_template("error.html")) == NULL)
 		return;
-	}
 	while (fgets(buf, BUFSIZ, fin) != NULL) {
 		buf[strcspn(buf, "\n")] = '\0';
 		for (a = buf; (b = strstr(a, TAG)) != NULL; a = b+2) {
@@ -313,20 +321,8 @@ render_comment(const char *author, const struct tm *tm, const char *ip,
 	char buf[BUFSIZ], *a, *b;
 	char date[TIME_LENGTH+1], body[BUFSIZ];
 
-#ifdef ENABLE_STATIC
-	if (from_cmd) {
-		if ((fin = fopen(CHROOT_DIR TEMPLATES_DIR
-		    "/comment.html", "r")) == NULL) {
-			warn("fopen: %s", CHROOT_DIR TEMPLATES_DIR
-			    "/comment.html");
-			return;
-		}
-	} else
-#endif /* ENABLE_STATIC */
-	if ((fin = fopen(TEMPLATES_DIR"/comment.html", "r")) == NULL) {
-		warn("fopen: %s", TEMPLATES_DIR"/comment.html");
+	if ((fin = open_template("comment.html")) == NULL)
 		return;
-	}
 	while (fgets(buf, BUFSIZ, fin) != NULL) {
 		buf[strcspn(buf, "\n")] = '\0';
 		for (a = buf; (b = strstr(a, TAG)) != NULL; a = b+2) {
@@ -378,20 +374,8 @@ render_comment_form(const char *aname)
 	char salt[sizeof(JAM_SALT)+1], hash[SHA1_DIGEST_STRING_LENGTH];
 	extern struct cform comment_form;
 
-#ifdef ENABLE_STATIC
-	if (from_cmd) {
-		if ((fin = fopen(CHROOT_DIR TEMPLATES_DIR
-		    "/comment_form.html","r")) == NULL) {
-			warn("fopen: %s", CHROOT_DIR TEMPLATES_DIR
-			    "/comment_form.html");
-			return;
-		}
-	} else
-#endif /* ENABLE_STATIC */
-	if ((fin = fopen(TEMPLATES_DIR"/comment_form.html", "r")) == NULL) {
-		warn("fopen: %s", TEMPLATES_DIR"/comment_form.html");
+	if ((fin = open_template("comment_form.html")) == NULL)
 		return;
-	}
 	srand(time(NULL));
 	jam1 = rand()%(JAM_MAX-JAM_MIN+1) + JAM_MIN;
 	jam2 = rand()%(JAM_MAX-JAM_MIN+1) + JAM_MIN;
@@ -451,20 +435,8 @@ render_comments(const char *aname)
 	FILE *fin;
 	char buf[BUFSIZ], *a, *b;
 
-#ifdef ENABLE_STATIC
-	if (from_cmd) {
-		if ((fin = fopen(CHROOT_DIR TEMPLATES_DIR
-		    "/comments.html", "r")) == NULL) {
-			warn("fopen: %s", CHROOT_DIR TEMPLATES_DIR
-			    "/comments.html");
-			return;
-		}
-	} else
-#endif /* ENABLE_STATIC */
-	if ((fin = fopen(TEMPLATES_DIR"/comments.html", "r")) == NULL) {
-		warn("fopen: %s", TEMPLATES_DIR"/comments.html");
+	if ((fin = open_template("comments.html")) == NULL)
 		return;
-	}
 	while (fgets(buf, BUFSIZ, fin) != NULL) {
 		buf[strcspn(buf, "\n")] = '\0';
 		for (a = buf; (b = strstr(a, TAG)) != NULL; a = b+2) {
@@ -499,20 +471,8 @@ render_article_content(const char *aname, const char *title,
 	char buf[BUFSIZ], *a, *b;
 	char date[TIME_LENGTH+1], body[BUFSIZ];
 
-#ifdef ENABLE_STATIC
-	if (from_cmd) {
-		if ((fin = fopen(CHROOT_DIR TEMPLATES_DIR
-		    "/article.html", "r")) == NULL) {
-			warn("fopen: %s", CHROOT_DIR TEMPLATES_DIR
-			    "/article.html");
-			return;
-		}
-	} else
-#endif /* ENABLE_STATIC */
-	if ((fin = fopen(TEMPLATES_DIR"/article.html", "r")) == NULL) {
-		warn("fopen: %s", TEMPLATES_DIR"/article.html");
+	if ((fin = open_template("article.html")) == NULL)
 		return;
-	}
 	while (fgets(buf, BUFSIZ, fin) != NULL) {
 		buf[strcspn(buf, "\n")] = '\0';
 		for (a = buf; (b = strstr(a, TAG)) != NULL; a = b+2) {
@@ -593,20 +553,8 @@ render_tags(const char *_)
 	FILE *fin;
 	char buf[BUFSIZ], *a, *b;
 
-#ifdef ENABLE_STATIC
-	if (from_cmd) {
-		if ((fin = fopen(CHROOT_DIR TEMPLATES_DIR
-		    "/tags.html", "r")) == NULL) {
-			warn("fopen: %s", CHROOT_DIR TEMPLATES_DIR
-			    "/error.html");
-			return;
-		}
-	} else
-#endif /* ENABLE_STATIC */
-	if ((fin = fopen(TEMPLATES_DIR"/tags.html", "r")) == NULL) {
-		warn("fopen: %s", TEMPLATES_DIR"/error.html");
+	if ((fin = open_template("tags.html")) == NULL)
 		return;
-	}
 	while (fgets(buf, BUFSIZ, fin) != NULL) {
 		buf[strcspn(buf, "\n")] = '\0';
 		for (a = buf; (b = strstr(a, TAG)) != NULL; a = b+2) {
@@ -638,19 +586,8 @@ render_page(page_cb cb, const char *data)
 #endif /* ENABLE_STATIC */
 
 	nb_articles = 0;
-#ifdef ENABLE_STATIC
-	if (from_cmd) {
-		if ((fin = fopen(CHROOT_DIR TEMPLATES_DIR
-		    "/page.html", "r")) == NULL) {
-			warn("fopen: %s", CHROOT_DIR TEMPLATES_DIR"/page.html");
-			return;
-		}
-	} else
-#endif /* ENABLE_STATIC */
-	if ((fin = fopen(TEMPLATES_DIR"/page.html", "r")) == NULL) {
-		warn("fopen: %s", TEMPLATES_DIR"/page.html");
+	if ((fin = open_template("page.html")) == NULL)
 		return;
-	}
 #ifdef ENABLE_STATIC
 	if (!generating_static) {
 #endif /* ENABLE_STATIC */
