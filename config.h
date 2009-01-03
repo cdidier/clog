@@ -10,6 +10,7 @@
 #define DESCRIPTION	"Colin's web journal."
 #define COPYRIGHT	"Copyright &#169; 2008 <a href=\"mailto:cdidier+clog@cybione.org\">Colin Didier</a>; All right reserved/Tous droits r&eacute;serv&eacute;s."
 #define CHARSET		"UTF-8"
+#define TITLE_SEPARATOR	" - "
 
 #ifdef ENABLE_STATIC
 #define CHROOT_DIR		"/var/www"

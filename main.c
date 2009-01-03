@@ -29,11 +29,7 @@ static char rcsid[] = "$Id$";
 
 #include "common.h"
 
-void render_error(const char *);
-void render_article(const char *);
-void render_tags(const char *);
-void render_page(page_cb, const char *);
-void render_rss(void);
+void render_page(void);
 
 #ifdef ENABLE_GZIP
 #include <zlib.h>
@@ -42,7 +38,6 @@ gzFile	 gz;
 
 #if defined(ENABLE_COMMENTS) && defined(ENABLE_POST_COMMENT)
 void post_comment(const char *);
-struct cform	comment_form;
 #endif /* ENABLE_POST_COMMENT */
 
 #ifdef ENABLE_STATIC
@@ -53,8 +48,7 @@ int from_cmd, follow_url, generating_static;
 #endif /* ENABLE_STATIC */
 
 FILE		*hout;
-const char	*tag;
-long		 offset;
+struct page	 globp;
 
 static char *
 get_params(void)
@@ -74,18 +68,18 @@ static void
 parse_query(void)
 {
 	char *q, *s;
-	long qoffset;
+	long offset;
 	const char *errstr;
 
 	q = getenv("QUERY_STRING");
 	for (; q != NULL && *q != '\0'; q = s) {
 		if ((s = strchr(q, '&')) != NULL)
 			*s++ = '\0';	
-		if (strncmp(q, "p=", 2) == 0) {
+		if (globp.type == PAGE_INDEX && strncmp(q, "p=", 2) == 0) {
 			q += 2;
-			qoffset = strtonum(q, 0, LONG_MAX, &errstr);
+			offset = strtonum(q, 0, LONG_MAX, &errstr);
 			if (errstr == NULL)
-				offset = qoffset;
+				globp.i.page = offset;
 		}
 	}
 }
@@ -142,11 +136,7 @@ main(int argc, char **argv)
 	enable_gzip();
 #endif /* ENABLE_GZIP */
 	hout = stdout;
-	tag = NULL;
-	offset = 0;
-#if defined(ENABLE_COMMENTS) && defined(ENABLE_POST_COMMENT)
-	memset(&comment_form, 0, sizeof(struct cform));
-#endif /* POST_COMMENT */
+	memset(&globp, 0, sizeof(struct page));
 	parse_query();
 
 #ifdef ENABLE_STATIC
@@ -175,27 +165,31 @@ main(int argc, char **argv)
 	if ((p = get_params()) != NULL) {
 		if (strncmp(p, "20", 2) == 0 || strncmp(p, "19", 2) == 0) {
 #if defined(ENABLE_COMMENTS) && defined(ENABLE_POST_COMMENT)
-			if (strcmp(getenv("REQUEST_METHOD"), "POST") == 0)
+			if (strcmp(getenv("REQUEST_METHOD"), "POST") == 0) {
 				post_comment(p);
-			else
+				goto out;
+			}
 #endif /* POST_COMMENT */
-				render_page(render_article, p);
+			globp.type = PAGE_ARTICLE;
+			globp.a.name = p;
 		} else if (strncmp(p, "tag/", 4) == 0) {
+			globp.type = PAGE_INDEX;
 			if (p[4] != '\0')
-				tag = p+4;
-			render_page(render_article, NULL);
-		} else if (strcmp(p, "tags") == 0) {
-			render_page(render_tags, NULL);
-		} else if (strncmp(p, "rss", 3) == 0) {
+				globp.i.tag = p+4;
+		} else if (strcmp(p, "tags") == 0)
+			globp.type = PAGE_TAG_CLOUD;
+		else if (strncmp(p, "rss", 3) == 0) {
+			globp.type = PAGE_RSS;
 			if (p[3] == '/' && p[4] != '\0')
-				tag = p+4;
-			render_rss();
+				globp.i.tag = p+4;
 		} else
-			render_page(render_error, ERR_PAGE_UNKNOWN);
-	} else
-		render_page(render_article, NULL);
+			globp.type = PAGE_UNKNOWN;
+	} else 
+		globp.type = PAGE_INDEX;
+	render_page();
 #endif /* ENABLE_STATIC */
 
+out:
 #ifdef ENABLE_GZIP
 	if (gz != NULL)
 		gzclose(gz);

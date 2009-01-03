@@ -85,8 +85,6 @@ struct data_cf {
 time_t get_mtime(const char *);
 #endif /* ENABLE_STATIC */
 
-static uint	 nb_articles;
-
 static void
 markers_error(const char *m, void *data)
 {
@@ -96,7 +94,7 @@ markers_error(const char *m, void *data)
 		hputs(msg);
 }
 
-void
+static void
 render_error(const char *msg)
 {
 	FILE *fin;
@@ -162,7 +160,7 @@ static void
 markers_comment_form(const char *m, void *data)
 {
 	struct data_cf *d = data;
-	extern struct cform comment_form;
+	extern struct page globp;
 
 	if (strcmp(m, "POST_URL") == 0) {
 		hputs(BIN_URL"/");
@@ -179,20 +177,20 @@ markers_comment_form(const char *m, void *data)
 		hputc(';');
 	} else if (strncmp(m, FORM_PREFIX, FORM_LEN) == 0) {
 		if (strcmp(m+FORM_LEN, "NAME") == 0) {
-			if (comment_form.name != NULL)
-				hput_escaped(comment_form.name);
+			if (globp.a.cform_name != NULL)
+				hput_escaped(globp.a.cform_name);
 		} else if (strcmp(m+FORM_LEN, "MAIL") == 0) {
-			if (comment_form.mail != NULL)
-				hput_escaped(comment_form.mail);
+			if (globp.a.cform_mail != NULL)
+				hput_escaped(globp.a.cform_mail);
 		} else if (strcmp(m+FORM_LEN, "WEB") == 0) {
-			if (comment_form.web != NULL)
-				hput_escaped(comment_form.web);
+			if (globp.a.cform_web != NULL)
+				hput_escaped(globp.a.cform_web);
 		} else if (strcmp(m+FORM_LEN, "TEXT") == 0) {
-			if (comment_form.text != NULL)
-				hput_escaped(comment_form.text);
+			if (globp.a.cform_text != NULL)
+				hput_escaped(globp.a.cform_text);
 		} else if (strcmp(m+FORM_LEN, "ERROR") == 0) {
-			if (comment_form.error != NULL)
-				hputs(comment_form.error);
+			if (globp.a.cform_error != NULL)
+				hputs(globp.a.cform_error);
 		}
 	}
 }
@@ -253,7 +251,7 @@ render_article_tag(const char *tname)
 }
 
 static void
-markers_article_content(const char *m, void *data)
+markers_article(const char *m, void *data)
 {
 	struct data_ac *d = data;
 	char date[TIME_LENGTH+1], body[BUFSIZ];
@@ -289,142 +287,105 @@ markers_article_content(const char *m, void *data)
 }
 
 static void
-render_article_content(const char *aname, const char *title,
-    const struct tm *tm, FILE *fbody, uint nb_comments)
+render_article(const char *aname, const char *title, const struct tm *tm,
+    FILE *fbody, uint nb_comments)
 {
 	FILE *fin;
 	struct data_ac d = { aname, title, tm, fbody, &nb_comments };
+	extern struct page globp;
 
 	if ((fin = open_template("article.html")) == NULL)
 		return;
-	parse_markers(fin, markers_article_content, &d);
+	parse_markers(fin, markers_article, &d);
 	fclose(fin);
-	++nb_articles;
-}
-
-void
-render_article(const char *aname)
-{
-	if (aname == NULL)
-		read_articles(render_article_content);
-	else {
-		if (read_article(aname, render_article_content, NULL, 0) == -1)
-			render_error(ERR_PAGE_ARTICLE);
-#ifdef ENABLE_COMMENTS
-		else
-			render_comments(aname);
-#endif /* ENABLE_COMMENTS */
-	}
+	if (globp.type == PAGE_INDEX)
+		++globp.i.nb_articles;
 }
 
 static void
-render_tag(const char *tag, uint nb_articles)
+render_tag(const char *tname, ulong nb_articles)
 {
 	hputs("<span style=\"font-size: ");
 	hputd(nb_articles*TAG_CLOUD_THRES+100);
 	hputs("%\">");
-	hput_pagelink(tag, 0, tag);
+	hput_pagelink(tname, 0, tname);
 	hputs("</span> ");
 }
 
 static void
-markers_tags(const char *m, void *data)
+markers_tag_cloud(const char *m, void *data)
 {
 	if (strcmp(m, "TAGS") == 0)
 		read_tags(render_tag);
 }
 
-void
-render_tags(const char *_)
+static void
+render_tag_cloud(void)
 {
 	FILE *fin;
 
 	if ((fin = open_template("tags.html")) == NULL)
 		return;
-	parse_markers(fin, markers_tags, NULL);
+	parse_markers(fin, markers_tag_cloud, NULL);
 	fclose(fin);
 }
 
 static void
 markers_page(const char *m, void *data)
 {
-	struct data_p *d = data;
-	extern const char *tag;
-	extern long offset;
+	char buf[BUFSIZ];
+	extern struct page globp;
 
 	if (strcmp(m, "TITLE") == 0) {
-		if (d->cb == render_article && d->name == NULL) {
-			if (tag != NULL) {
-				hputs("- tag:");
-				hputs(tag);
+		switch (globp.type) {
+		case PAGE_INDEX:
+			if (globp.i.tag != NULL) {
+				hputs(TITLE_SEPARATOR "tag:");
+				hputs(globp.i.tag);
 			}
-		} else if (d->cb == render_article) {
-			char title[BUFSIZ];
-
-			*title = '\0';
-			read_article(d->name, NULL, title, BUFSIZ);
-			if (*title != '\0') {
-				hputs("- ");
-				hputs(title);
+			break;
+		case PAGE_ARTICLE:
+			*buf = '\0';
+			read_article(globp.a.name, NULL, buf, sizeof(buf));
+			if (*buf != '\0') {
+				hputs(TITLE_SEPARATOR);
+				hputs(buf);
 			}
-		} else if (d->cb == render_tags)
-			hputs("- tags");
+			break;
+		case PAGE_TAG_CLOUD:
+			hputs(TITLE_SEPARATOR "tags");
+			break;
+		}
 	} else if (strcmp(m, "NEXT") == 0) {
-		if (d->cb == render_article && offset > 0)
-			hput_pagelink(tag, offset-1, NAV_NEXT);
+		if (globp.type == PAGE_INDEX && globp.i.page > 0)
+			hput_pagelink(globp.i.tag, globp.i.page-1, NAV_NEXT);
 	} else if (strcmp(m, "PREVIOUS") == 0) {
-		if (d->cb == render_article && nb_articles > NB_ARTICLES)
-			hput_pagelink(tag, offset+1, NAV_PREVIOUS);
+		if (globp.type == PAGE_INDEX
+		    && globp.i.nb_articles > NB_ARTICLES)
+			hput_pagelink(globp.i.tag, globp.i.page+1,
+			    NAV_PREVIOUS);
 	} else if (strcmp(m, "BODY") == 0) {
-		if (d->cb != NULL)
-			d->cb(d->name);
-	}
-}
-
-void
-render_page(page_cb cb, const char *name)
-{
-	FILE *fin;
-	struct data_p d = { cb, name };
-	extern FILE *hout;
-#ifdef ENABLE_GZIP
-	extern gzFile gz;
-#endif /* ENABLE_GZIP */
-#ifdef ENABLE_STATIC
-	extern int generating_static, from_cmd;
-#endif /* ENABLE_STATIC */
-
-	nb_articles = 0;
-	if ((fin = open_template("page.html")) == NULL)
-		return;
-#ifdef ENABLE_STATIC
-	if (!generating_static) {
-#endif /* ENABLE_STATIC */
-#ifdef ENABLE_GZIP
-		if (gz != NULL)
-			fputs("Content-Encoding: gzip\r\n", stdout);
-#endif /* ENABLE_GZIP */
-		fputs("Content-type: text/html;"
-		    "charset="CHARSET"\r\n\r\n", hout);
-		fflush(hout);
-#ifdef ENABLE_STATIC
-	}
-	if (from_cmd && cb == render_article && name != NULL) {
-		time_t mtime;
-
-		if ((mtime = get_mtime(name)) != 0) {
-			char buf[BUFSIZ];
-
-			strftime(buf, BUFSIZ, MOD_FORMAT, localtime(&mtime));
-			hputs(MOD_BEGIN);
-			hputs(buf);
-			hputs(MOD_END);
-			hputc('\n');
+		switch (globp.type) {
+		case PAGE_UNKNOWN:
+			render_error(ERR_PAGE_UNKNOWN);
+			break;
+		case PAGE_INDEX:
+			read_articles(render_article);
+			break;
+		case PAGE_ARTICLE:
+			if (read_article(globp.a.name, render_article,
+			    NULL, 0) == -1)
+				render_error(ERR_PAGE_ARTICLE);
+#ifdef ENABLE_COMMENTS
+			else
+				render_comments(globp.a.name);
+#endif /* ENABLE_COMMENTS */
+			break;
+		case PAGE_TAG_CLOUD:
+			render_tag_cloud();
+			break;
 		}
 	}
-#endif /* ENABLE_STATIC */
-	parse_markers(fin, markers_page, &d);
-	fclose(fin);
 }
 
 #define RSS_DATE_FORMAT "%a, %d %b %Y %R:00 %z"
@@ -471,49 +432,25 @@ render_rss_article(const char *aname, const char *title, const struct tm *tm,
 	    "    </item>\n");
 }
 
-void
+static void
 render_rss(void)
 {
 	char date[RSS_DATE_LENGTH];
 	time_t now;
-	extern const char *tag;
-	extern FILE *hout;
-#ifdef ENABLE_GZIP
-	extern gzFile gz;
-#endif /* ENABLE_GZIP */
-#ifdef ENABLE_STATIC
-	extern int generating_static;
-#endif /* ENABLE_STATIC */
+	extern struct page globp;
 
-#ifdef ENABLE_STATIC
-	if (!generating_static) {
-#ifdef ENABLE_GZIP
-		if (gz != NULL)
-			fputs("Content-Encoding: gzip\r\n", stdout);
-#endif /* ENABLE_GZIP */
-		fputs("Content-type: application/rss+xml;"
-		    "charset="CHARSET"\r\n\r\n", hout);
-		fflush(hout);
-	}
-#else
-	if (gz != NULL)
-		fputs("Content-Encoding: gzip\r\n", stdout);
-	fputs("Content-type: application/rss+xml;charset="CHARSET"\r\n\r\n",
-	    hout);
-	fflush(hout);
-#endif /* ENABLE_STATIC */
 	hputs(
 	    "<?xml version=\"1.0\"?>\n"
 	    "<rss version=\"2.0\" xmlns:atom=\"http://www.w3.org/2005/Atom\">\n"
 	    "  <channel>\n"
 	    "    <atom:link href=\"");
-	hput_url("rss", tag);
+	hput_url("rss", globp.i.tag);
 	hputs("\" rel=\"self\" type=\"application/rss+xml\" />\n"
 	    "    <title>");
 	hputs(SITE_NAME);
-	if (tag != NULL) {
+	if (globp.i.tag != NULL) {
 		hputs(" - tag:");
-		hputs(tag);
+		hputs(globp.i.tag);
 	}
 	hputs("</title>\n"
 	    "    <link>");
@@ -531,4 +468,64 @@ render_rss(void)
 	hputs(
 	    "  </channel>\n"
 	    "</rss>\n");
+}
+
+void
+render_page(void)
+{
+	FILE *fin;
+	extern struct page globp;
+	extern FILE *hout;
+#ifdef ENABLE_GZIP
+	extern gzFile gz;
+#endif /* ENABLE_GZIP */
+#ifdef ENABLE_STATIC
+	extern int generating_static, from_cmd;
+#endif /* ENABLE_STATIC */
+
+#ifdef ENABLE_STATIC
+	if (!generating_static) {
+#endif /* ENABLE_STATIC */
+#ifdef ENABLE_GZIP
+	if (gz != NULL)
+		fputs("Content-Encoding: gzip\r\n", stdout);
+#endif /* ENABLE_GZIP */
+
+		if (globp.type == PAGE_RSS)
+			fputs("Content-type: application/rss+xml;"
+			    "charset="CHARSET"\r\n\r\n", hout);
+		else
+			fputs("Content-type: text/html;"
+			    "charset="CHARSET"\r\n\r\n", hout);
+		fflush(hout);
+#ifdef ENABLE_STATIC
+	}
+#endif /* ENABLE_STATIC */
+	if (globp.type == PAGE_RSS)
+		render_rss();
+	else {
+		if ((fin = open_template("page.html")) == NULL)
+			return;
+		if (globp.type == PAGE_INDEX)
+			globp.i.nb_articles = 0;
+#ifdef ENABLE_STATIC
+		/* Write the marker $ModTime:$ on top of the file */
+		if (from_cmd && globp.type == PAGE_ARTICLE) {
+			time_t mtime;
+
+			if ((mtime = get_mtime(globp.a.name)) != 0) {
+				char buf[BUFSIZ];
+
+				strftime(buf, BUFSIZ, MOD_FORMAT,
+				    localtime(&mtime));
+				hputs(MOD_BEGIN);
+				hputs(buf);
+				hputs(MOD_END);
+				hputc('\n');
+			}
+		}
+#endif /* ENABLE_STATIC */
+		parse_markers(fin, markers_page, NULL);
+		fclose(fin);
+	}
 }

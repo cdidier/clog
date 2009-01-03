@@ -44,9 +44,12 @@ struct data_foreach {
 	};
 	union {
 		comment_cb	*c_cb;
-		article_tag_cb	*at_cb;
 		article_cb	*a_cb;
 		tag_cb		*t_cb;
+		struct {
+			const char	*tag;
+			article_tag_cb	*cb;
+		} at;
 	};
 };
 
@@ -103,6 +106,7 @@ err:	fts_close(fts);
 
 #endif /* ENABLE_COMMENTS */
 
+
 int
 foreach_article(foreach_article_cb cb, void *data)
 {
@@ -110,16 +114,16 @@ foreach_article(foreach_article_cb cb, void *data)
 	FTSENT *e;
 	char path[MAXPATHLEN];
 	char * const path_argv[] = { path, NULL };
-	extern const char *tag;
+	extern struct page globp;
 
-	if (tag != NULL) {
+	if (globp.type != PAGE_ARTICLE && globp.i.tag != NULL) {
 #ifdef ENABLE_STATIC
 		if (from_cmd)
 			snprintf(path, MAXPATHLEN, CHROOT_DIR TAGS_DIR
-			    "/%s", tag);
+			    "/%s", globp.i.tag);
 		else
 #endif /* ENABLE_STATIC */
-			snprintf(path, MAXPATHLEN, TAGS_DIR"/%s", tag);
+			snprintf(path, MAXPATHLEN, TAGS_DIR"/%s", globp.i.tag);
 	} else {
 #ifdef ENABLE_STATIC
 		if (from_cmd)
@@ -152,6 +156,25 @@ foreach_article(foreach_article_cb cb, void *data)
 	return 1;
 err:	fts_close(fts);
 	return 0;
+}
+
+int
+foreach_article_in_tag(const char *tname, foreach_article_cb cb, void *data)
+{
+	const char *old_tag = NULL;
+	int old_type, r;
+	extern struct page globp;
+
+	old_type = globp.type;
+	if (old_type == PAGE_INDEX || old_type == PAGE_RSS)
+		old_tag = globp.i.tag;
+	globp.type = PAGE_INDEX;
+	globp.i.tag = tname;
+	r = foreach_article(cb, data);
+	globp.type = old_type;
+	if (old_type == PAGE_INDEX || old_type == PAGE_RSS)
+		globp.i.tag = old_tag;
+	return r;
 }
 
 int
@@ -284,10 +307,9 @@ static int
 do2_read_article_tags(const char *aname, void *data)
 {
 	struct data_foreach *d = data;
-	extern const char *tag;
 
 	if (strcmp(d->name, aname) == 0) {
-		d->at_cb(tag);
+		d->at.cb(d->at.tag);
 		++d->unb;
 	}
 	return 1;
@@ -296,13 +318,10 @@ do2_read_article_tags(const char *aname, void *data)
 static int
 do_read_article_tags(const char *tname, void *data)
 {
-	const char *old_tag;
-	extern const char *tag;
+	struct data_foreach *d = data;
 
-	old_tag = tag;
-	tag = tname;
-	foreach_article(do2_read_article_tags, data);
-	tag = old_tag;
+	d->at.tag = tname;
+	foreach_article_in_tag(tname, do2_read_article_tags, data);
 	return 1;
 }
 
@@ -313,7 +332,7 @@ read_article_tags(const char *aname, article_tag_cb cb)
 
 	d.name = aname;
 	d.unb = 0;
-	d.at_cb = cb;
+	d.at.cb = cb;
 	foreach_tag(do_read_article_tags, &d);
 	return d.unb;
 }
@@ -325,15 +344,17 @@ read_article_tags(const char *aname, article_tag_cb cb)
  */
 
 int
-do2_get_mtime_tags(const char *tname, void *data)
+do2_get_mtime_tags(const char *aname, void *data)
 {
 	char path[MAXPATHLEN];
 	struct data_foreach *d = data;
 	struct stat sb;
-	extern const char *tag;
+	extern struct page globp;
 
+	if (strcmp(aname, d->name) != 0)
+		return 1;
 	snprintf(path, MAXPATHLEN, CHROOT_DIR TAGS_DIR
-	    "/%s/%s", tag, d->name);
+	    "/%s/%s", globp.i.tag, d->name);
 	if (stat(path, &sb) != -1 && sb.st_mtime > d->time)
 		d->time = sb.st_mtime;
 	return 1;
@@ -342,14 +363,7 @@ do2_get_mtime_tags(const char *tname, void *data)
 int
 do_get_mtime_tags(const char *tname, void *data)
 {
-	const char *old_tag;
-	extern const char *tag;
-
-	old_tag = tag;
-	tag = tname;
-	foreach_article(do2_get_mtime_tags, data);
-	tag = old_tag;
-	return 1;
+	return foreach_article_in_tag(tname, do2_get_mtime_tags, data);
 }
 
 int
@@ -446,9 +460,9 @@ do_read_articles(const char *aname, void *data)
 {
 	struct data_foreach *d = data;
 	long nb;
-	extern long offset;
+	extern struct page globp;
 
-	nb = offset*NB_ARTICLES;
+	nb = globp.i.page*NB_ARTICLES;
 	if (d->nb >= nb+NB_ARTICLES)
 		return 0;
 	else if (d->nb >= nb)
@@ -503,7 +517,7 @@ get_page(const char *aname)
 static int
 do2_read_tags(const char *aname, void *data)
 {
-	uint *nb = data;
+	ulong *nb = data;
 
 	++*nb;
 	return 1;
@@ -513,15 +527,10 @@ static int
 do_read_tags(const char *tname, void *data)
 {
 	struct data_foreach *d = data;
-	const char *old_tag;
-	extern const char *tag;
-	uint nb;
+	ulong nb;
 
 	nb = 0;
-	old_tag = tag;
-	tag = tname;
-	foreach_article(do2_read_tags, &nb);
-	tag = old_tag;
+	foreach_article_in_tag(tname, do2_read_tags, &nb);
 	d->t_cb(tname, nb);
 	return 1;
 }

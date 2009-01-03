@@ -242,7 +242,7 @@ hput_pagelink(const char *tname, long page, const char *text)
 static int
 hput_generic_markers(const char *m)
 { 
-	extern const char *tag;
+	extern struct page globp;
 
 	if (strcmp(m, "BASE_URL") == 0)
 		hput_url(NULL, NULL);
@@ -257,13 +257,16 @@ hput_generic_markers(const char *m)
 	else if (strcmp(m, "RSS_TITLE") == 0) {
 		hputs(SITE_NAME);
 		hputs(" RSS");
-		if (tag != NULL) {
+		if (globp.type == PAGE_INDEX && globp.i.tag != NULL) {
 			hputs(" - tag:");
-			hputs(tag);
+			hputs(globp.i.tag);
 		}
-	} else if (strcmp(m, "RSS_URL") == 0)
-		hput_url("rss", tag);
-	else
+	} else if (strcmp(m, "RSS_URL") == 0) {
+		if (globp.type == PAGE_INDEX)
+			hput_url("rss", globp.i.tag);
+		else
+			hput_url("rss", NULL);
+	} else
 		return 0;
 	return 1;
 }

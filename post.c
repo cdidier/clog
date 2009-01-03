@@ -44,8 +44,7 @@ static char rcsid[] = "$Id$";
 void update_static_article(const char *, int);
 #endif /* ENABLE_STATIC */
 
-void render_article(const char *);
-void render_page(page_cb, const char *);
+void render_page();
 void redirect(const char *);
 
 #define INPUT_JAM	"jam="
@@ -115,22 +114,23 @@ create_comments_dir(const char *aname)
 }
 
 static void
-write_comment(const char *aname, struct cform *cf)
+write_comment(void)
 {
 	struct stat st;
 	FILE *fout;
 	char path[MAXPATHLEN], cname[FILE_MINLEN+1], *end;
 	time_t now;
 	struct tm tm;
+	extern struct page globp;
 
 	/* The article exists ? */
-	snprintf(path, MAXPATHLEN, ARTICLES_DIR"/%s/article", aname);
+	snprintf(path, MAXPATHLEN, ARTICLES_DIR"/%s/article", globp.a.name);
 	if (stat(path, &st) != 0)
-		redirect(aname);
+		redirect(globp.a.name);
 	time(&now);
 	localtime_r(&now, &tm);
 	strftime(cname, FILE_MINLEN+1, FILE_FORMAT, &tm);
-	snprintf(path, MAXPATHLEN, ARTICLES_DIR"/%s/comments/%sa", aname,
+	snprintf(path, MAXPATHLEN, ARTICLES_DIR"/%s/comments/%sa", globp.a.name,
 	    cname);
 	end = strchr(path, '\0')-1;
 	while (end-path < MAXPATHLEN && stat(path, &st) == 0) {
@@ -145,29 +145,30 @@ write_comment(const char *aname, struct cform *cf)
 	if (end-path >= MAXPATHLEN)
 		goto err;
 	if ((fout = fopen(path, "w")) == NULL) {
-		if (create_comments_dir(aname) == -1)
+		if (create_comments_dir(globp.a.name) == -1)
 			goto err;
 		if ((fout = fopen(path, "w")) == NULL)
 			goto err;
 	}
-	fprintf(fout, "%s%s\n", COMMENT_AUTHOR, cf->name);
+	fprintf(fout, "%s%s\n", COMMENT_AUTHOR, globp.a.cform_name);
 	fprintf(fout, "%s%s\n", COMMENT_IP, getenv("REMOTE_ADDR"));
-	if (cf->mail != NULL && *cf->mail != '\0')
-		fprintf(fout, "%s%s\n", COMMENT_MAIL, cf->mail);
-	if (cf->web != NULL && *cf->web != '\0')
-		fprintf(fout, "%s%s\n", COMMENT_WEB, cf->web);
+	if (globp.a.cform_mail != NULL && *globp.a.cform_mail != '\0')
+		fprintf(fout, "%s%s\n", COMMENT_MAIL, globp.a.cform_mail);
+	if (globp.a.cform_web != NULL && *globp.a.cform_web != '\0')
+		fprintf(fout, "%s%s\n", COMMENT_WEB, globp.a.cform_web);
 	fputc('\n', fout);
-	fputs(cf->text, fout);
+	fputs(globp.a.cform_text, fout);
 	fclose(fout);
 #ifdef ENABLE_STATIC
-	memset(cf, 0, sizeof(struct cform));
-	update_static_article(aname, 0);
+	globp.a.cform_name = globp.a.cform_mail = globp.a.cform_web
+	    = globp.a.cform_text = globp.a.cform_error = NULL;
+	update_static_article(globp.a.name, 0);
 #endif /* ENABLE_STATIC */
-	redirect(aname); 
+	redirect(globp.a.name); 
 	return;
 err:
-	cf->error = ERR_CFORM_WRITE;
-	render_page(render_article, aname);
+	globp.a.cform_error = ERR_CFORM_WRITE;
+	render_page();
 }
 
 static int
@@ -197,15 +198,17 @@ post_comment(const char *aname)
 	size_t len;
 	const char *errstr;
 	char *s, *sep, *jam, *jam_hash, *nl;
-	extern struct cform comment_form;
+	extern struct page globp;
 
+	globp.type = PAGE_ARTICLE;
+	globp.a.name = aname;
 	len = strtonum(getenv("CONTENT_LENGTH"), 0, LONG_MAX, &errstr);
 	if (errstr != NULL) {
 		warn("strtonum");
 		goto out;
 	}
 	if (len > MAX_INPUT_LEN) {
-		comment_form.error = ERR_CFORM_LEN;
+		globp.a.cform_error = ERR_CFORM_LEN;
 		goto out;
 	}
 	if (fread(buf, len, 1, stdin) == 0 && !feof(stdin)) {
@@ -225,31 +228,31 @@ post_comment(const char *aname)
 		    sizeof(INPUT_JAM_HASH)-1) == 0)
 			jam_hash = s+sizeof(INPUT_JAM_HASH)-1;
 		else if (strncmp(s, INPUT_NAME, sizeof(INPUT_NAME)-1) == 0) {
-			comment_form.name = s+sizeof(INPUT_NAME)-1;
-			if ((nl = strchr(comment_form.name, '\n')) != NULL)
+			globp.a.cform_name = s+sizeof(INPUT_NAME)-1;
+			if ((nl = strchr(globp.a.cform_name, '\n')) != NULL)
 				*nl = '\0';
 		} else if (strncmp(s, INPUT_MAIL, sizeof(INPUT_MAIL)-1) == 0) {
-			comment_form.mail = s+sizeof(INPUT_MAIL)-1;
-			if ((nl = strchr(comment_form.mail, '\n')) != NULL)
+			globp.a.cform_mail = s+sizeof(INPUT_MAIL)-1;
+			if ((nl = strchr(globp.a.cform_mail, '\n')) != NULL)
 				*nl = '\0';
 		} else if (strncmp(s, INPUT_WEB, sizeof(INPUT_WEB)-1) == 0) {
-			comment_form.web = s+sizeof(INPUT_WEB)-1;
-			if ((nl = strchr(comment_form.web, '\n')) != NULL)
+			globp.a.cform_web = s+sizeof(INPUT_WEB)-1;
+			if ((nl = strchr(globp.a.cform_web, '\n')) != NULL)
 				*nl = '\0';
 		} else if (strncmp(s, INPUT_TEXT, sizeof(INPUT_TEXT)-1) == 0)
-			comment_form.text = s+sizeof(INPUT_TEXT)-1;
+			globp.a.cform_text = s+sizeof(INPUT_TEXT)-1;
 	} 
-	if (comment_form.name == NULL || *comment_form.name == '\0')
-		comment_form.error = ERR_CFORM_NAME;
-	else if (comment_form.text == NULL || *comment_form.text == '\0')
-		comment_form.error = ERR_CFORM_TEXT;
+	if (globp.a.cform_name == NULL || *globp.a.cform_name == '\0')
+		globp.a.cform_error = ERR_CFORM_NAME;
+	else if (globp.a.cform_text == NULL || *globp.a.cform_text == '\0')
+		globp.a.cform_error = ERR_CFORM_TEXT;
 	else if (!verify_jam(jam, jam_hash))
-		comment_form.error = ERR_CFORM_JAM;
+		globp.a.cform_error = ERR_CFORM_JAM;
 	else {
-		write_comment(aname, &comment_form);
+		write_comment();
 		return;
 	}
-out:	render_page(render_article, aname);
+out:	render_page();
 }
 
 #endif /* ENABLE_POST_COMMENT */

@@ -35,10 +35,7 @@ static char rcsid[] = "$Id$";
 
 #ifdef ENABLE_STATIC
 
-void	render_article(const char *);
-void	render_tags(const char *);
-void	render_page(page_cb, const char *);
-void	render_rss(void);
+void	render_page();
 int	foreach_article(foreach_article_cb cb, void *data);
 ulong	read_article_tags(const char *, article_tag_cb);
 time_t  get_mtime(const char *);
@@ -198,8 +195,7 @@ gen_article(const char *aname)
 	mode_t old_mask;
 	FILE *old_hout;
 	extern FILE *hout;
-	extern const char *tag;
-	extern long offset;
+	extern struct page globp;
 
 	if (from_cmd) {
 		snprintf(path, MAXPATHLEN, CHROOT_DIR BASE_DIR
@@ -212,9 +208,9 @@ gen_article(const char *aname)
 	if ((hout = fopen(path, "w")) == NULL)
 		err(1, "fopen: %s", path);
 	umask(old_mask);
-	tag = NULL;
-	offset = 0;
-	render_page(render_article, aname);
+	globp.type = PAGE_ARTICLE;
+	globp.a.name = aname;
+	render_page();
 	fclose(hout);
 	hout = old_hout;
 }
@@ -226,7 +222,7 @@ gen_rss(const char *tname)
 	mode_t old_mask;
 	FILE *old_hout;
 	extern FILE *hout;
-	extern const char *tag;
+	extern struct page globp;
 
 	if (from_cmd) {
 		snprintf(path, MAXPATHLEN, CHROOT_DIR BASE_DIR
@@ -241,8 +237,9 @@ gen_rss(const char *tname)
 	if ((hout = fopen(path, "w")) == NULL)
 		err(1, "fopen: %s", path);
 	umask(old_mask);
-	tag = tname;
-	render_rss();
+	globp.type = PAGE_RSS;
+	globp.i.tag = tname;
+	render_page();
 	fclose(hout);
 	hout = old_hout;
 }
@@ -254,8 +251,7 @@ gen_index(const char *tname, long page)
 	mode_t old_mask;
 	FILE *old_hout;
 	extern FILE *hout;
-	extern const char *tag;
-	extern long offset;
+	extern struct page globp;
 
 	snprintf(pagenum, BUFSIZ, "%ld", page);
 	if (from_cmd) {
@@ -275,9 +271,10 @@ gen_index(const char *tname, long page)
 	if ((hout = fopen(path, "w")) == NULL)
 		 err(1, "fopen: %s", path);
 	umask(old_mask);
-	tag = tname;
-	offset = page;
-	render_page(render_article, NULL);
+	globp.type = PAGE_INDEX;
+	globp.i.tag = tname;
+	globp.i.page = page;
+	render_page();
 	fclose(hout);
 	hout = old_hout;
 	if (page == 0)
@@ -291,7 +288,7 @@ gen_tags(void)
 	mode_t old_mask;
 	FILE *old_hout;
 	extern FILE *hout;
-	extern const char *tag;
+	extern struct page globp;
 
 	if (from_cmd) {
 		strlcpy(path, CHROOT_DIR BASE_DIR"/tags.html", MAXPATHLEN);
@@ -303,8 +300,8 @@ gen_tags(void)
 	if ((hout = fopen(path, "w")) == NULL)
 		err(1, "fopen: %s", path);
 	umask(old_mask);
-	tag = NULL;
-	render_page(render_tags, NULL);
+	globp.type = PAGE_TAG_CLOUD;
+	render_page();
 	fclose(hout);
 	hout = old_hout;
 }
@@ -320,8 +317,8 @@ update_static_article(const char *aname, int new)
 {
 	struct vtag *vt;
 	long i, pages;
-	extern const char *tag;
 	extern int generating_static;
+	extern struct page globp;
 
 	generating_static = 1;
 	gen_article(aname);
@@ -330,7 +327,8 @@ update_static_article(const char *aname, int new)
 	add_static_tag(NULL, 0);
 	read_article_tags(aname, update_static_article_add_tag);
 	SLIST_FOREACH(vt, &tovisit_tags, next) {
-		tag = vt->tname;
+		globp.type = PAGE_INDEX;
+		globp.i.tag = vt->tname;
 		if (new) {
 			pages = get_page(NULL);
 			for (i = 0; i <= pages; ++i)
