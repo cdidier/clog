@@ -81,10 +81,6 @@ struct data_cf {
 
 #endif /* ENABLE_COMMENTS */
 
-#ifdef ENABLE_STATIC
-time_t get_mtime(const char *);
-#endif /* ENABLE_STATIC */
-
 static void
 markers_error(const char *m, void *data)
 {
@@ -508,23 +504,6 @@ render_page(void)
 			return;
 		if (globp.type == PAGE_INDEX)
 			globp.i.nb_articles = 0;
-#ifdef ENABLE_STATIC
-		/* Write the marker $ModTime:$ on top of the file */
-		if (from_cmd && globp.type == PAGE_ARTICLE) {
-			time_t mtime;
-
-			if ((mtime = get_mtime(globp.a.name)) != 0) {
-				char buf[BUFSIZ];
-
-				strftime(buf, BUFSIZ, MOD_FORMAT,
-				    localtime(&mtime));
-				hputs(MOD_BEGIN);
-				hputs(buf);
-				hputs(MOD_END);
-				hputc('\n');
-			}
-		}
-#endif /* ENABLE_STATIC */
 		parse_markers(fin, markers_page, NULL);
 		fclose(fin);
 	}

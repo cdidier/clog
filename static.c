@@ -154,38 +154,17 @@ add_static_article(const char *aname)
 static time_t
 get_static_mtime(const char *aname)
 {
-	char path[MAXPATHLEN], buf[BUFSIZ], *s, *end;
-	FILE *fin;
-	struct tm tm;
+	char path[MAXPATHLEN];
+	struct stat sb;
 
 	if (from_cmd)
 		snprintf(path, MAXPATHLEN, CHROOT_DIR BASE_DIR
 		    "/%s.html", aname);
 	else
 		snprintf(path, MAXPATHLEN, BASE_DIR"/%s.html", aname);
-	if ((fin = fopen(path, "r")) == NULL) {
-		if (errno != ENOENT)
-			warn("fopen: %s", path);
-		return 0;
-	}
-	if (fgets(buf, BUFSIZ, fin) == NULL && !feof(fin)) {
-		warn("fgets: %s", path);
-		fclose(fin);
-		return 0;
-	}
-	fclose(fin);
-	if ((s = strstr(buf, MOD_BEGIN)) == NULL)
-		return 0;
-	s += sizeof(MOD_BEGIN)-1;
-	if ((end = strstr(s, MOD_END)) == NULL)
-		return 0;
-	*end = '\0';
-	memset(&tm, 0, sizeof(struct tm));
-	if (strptime(s, MOD_FORMAT, &tm) == NULL) {
-		warn("strptime");
-		return 0;
-	}
-	return mktime(&tm);
+	if (stat(path, &sb) != -1)
+		return sb.st_mtime;
+	return 0;
 }
 
 static void
@@ -349,7 +328,7 @@ do_update_static(const char *aname, void *data)
 	int *mod = data;
 
 	if ((mtime = get_static_mtime(aname)) == 0
-	    || mtime != get_mtime(aname)) {
+	    || mtime < get_mtime(aname)) {
 		update_static_article(aname, 1);
 		*mod = 1;
 	}
