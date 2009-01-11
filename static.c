@@ -189,6 +189,8 @@ gen_article(const char *aname)
 	umask(old_mask);
 	globp.type = PAGE_ARTICLE;
 	globp.a.name = aname;
+	globp.a.cform_name = globp.a.cform_mail = globp.a.cform_web =
+	    globp.a.cform_text = globp.a.cform_error = NULL;
 	render_page();
 	fclose(hout);
 	hout = old_hout;
@@ -296,10 +298,12 @@ update_static_article(const char *aname, int new)
 {
 	struct vtag *vt;
 	long i, pages;
+	struct page old_page;
 	extern int generating_static;
 	extern struct page globp;
 
 	generating_static = 1;
+	old_page = globp;
 	gen_article(aname);
 	SLIST_INIT(&tovisit_tags);
 	SLIST_INIT(&visited_tags);
@@ -319,6 +323,7 @@ update_static_article(const char *aname, int new)
 	}
 	clean_tags();
 	generating_static = 0;
+	globp = old_page;
 }
 
 static int

@@ -116,7 +116,8 @@ foreach_article(foreach_article_cb cb, void *data)
 	char * const path_argv[] = { path, NULL };
 	extern struct page globp;
 
-	if (globp.type != PAGE_ARTICLE && globp.i.tag != NULL) {
+	if ((globp.type == PAGE_INDEX || globp.type == PAGE_RSS)
+	    && globp.i.tag != NULL) {
 #ifdef ENABLE_STATIC
 		if (from_cmd)
 			snprintf(path, MAXPATHLEN, CHROOT_DIR TAGS_DIR
@@ -161,19 +162,15 @@ err:	fts_close(fts);
 int
 foreach_article_in_tag(const char *tname, foreach_article_cb cb, void *data)
 {
-	const char *old_tag = NULL;
-	int old_type, r;
+	struct page old_page;
+	int r;
 	extern struct page globp;
 
-	old_type = globp.type;
-	if (old_type == PAGE_INDEX || old_type == PAGE_RSS)
-		old_tag = globp.i.tag;
+	old_page = globp;
 	globp.type = PAGE_INDEX;
 	globp.i.tag = tname;
 	r = foreach_article(cb, data);
-	globp.type = old_type;
-	if (old_type == PAGE_INDEX || old_type == PAGE_RSS)
-		globp.i.tag = old_tag;
+	globp = old_page;
 	return r;
 }
 
