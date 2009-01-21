@@ -20,6 +20,7 @@
 static char rcsid[] = "$Id$";
 #endif
 
+#include <ctype.h>
 #include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -110,7 +111,7 @@ static void
 markers_article_comment(const char *m, void *data)
 {
 	struct data_c *d = data;
-	char buf[BUFSIZ];
+	char buf[BUFSIZ], *a, *b, c;
 
 	if (strcmp(m, "NAME") == 0) {
 		hput_escaped(d->author);
@@ -134,8 +135,34 @@ markers_article_comment(const char *m, void *data)
 			hputs("\">web</a>");
 		}
 	} else if (strcmp(m, "TEXT") == 0) {
-		while (fgets(buf, sizeof(buf), d->fbody) != NULL)
-			hput_escaped(buf);
+		while (fgets(buf, sizeof(buf), d->fbody) != NULL) {
+			buf[strcspn(buf, "\n")] = '\0';
+			for (a = buf; (b = strstr(a, "http://")) != NULL;
+			    a = b) {
+				*b = '\0';
+				hput_escaped(a);
+				*b = 'h';
+				a = b;
+				for (c = '\0'; c == '\0' && *b != '\0' ; ++b)
+					if (isspace(*b)
+					    || (*b == '.' && (isspace(b[1]) ||
+					    b[1] == '\0'))
+					    || (*b == ')' && (isspace(b[1]) ||
+					    b[1] == '.' || b[1] == '\0'))) {
+						c = *b;
+						*b = '\0';
+					}
+				--b;
+				hputs("<a href=\"");
+				hput_escaped(a);
+				hputs("\">");
+				hput_escaped(a);
+				hputs("</a>");
+				*b = c;
+			}
+			hput_escaped(a);
+			hputc('\n');
+		}
 	}
 }
 
