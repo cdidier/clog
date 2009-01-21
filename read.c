@@ -402,6 +402,11 @@ get_article_mtime(const char *aname)
 		return 0;
 	d.time = sb.st_mtime;
 	snprintf(path, MAXPATHLEN, CHROOT_DIR ARTICLES_DIR
+	    "/%s/resume", aname);
+	if (stat(path, &sb) != -1)
+		if (sb.st_mtime > d.time)
+			d.time = sb.st_mtime;
+	snprintf(path, MAXPATHLEN, CHROOT_DIR ARTICLES_DIR
 		    "/%s/comments", aname);
 	if (stat(path, &sb) != -1) {
 		if (sb.st_mtime > d.time)
