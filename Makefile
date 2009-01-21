@@ -20,7 +20,7 @@ CFLAGS+=-DENABLE_STATIC
 ### Usually you don't need to edit the following
 
 PROG=blog
-CFLAGS+=-W -Wall -Wpointer-arith -Wbad-function-cast -g
+CFLAGS+=-W -Wall -Wpointer-arith -Wbad-function-cast
 SRCS+= main.c post.c read.c render.c render_tools.c static.c
 OBJS= ${SRCS:.c=.o}
 
