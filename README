@@ -118,6 +118,7 @@ article. It can contains the following markers:
 The file "TEMPLATES_DIR/comment.html" contains a comment. It can
 contains the following markers:
 	%%NAME%%	The name of the author of the comment
+	%%NB%%		The number of the comment
 	%%MAIL%%	The mail address of the author
 	%%WEB%%		The web page of the author
 	%%DATE%%	The date of the comment
