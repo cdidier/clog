@@ -49,7 +49,8 @@ struct data_p {
 	const char	*name;
 };
 
-int	read_article(const char *, article_cb, char *, size_t);
+int	read_article(const char *, article_cb);
+int	get_article_title(const char *, char *, size_t);
 void	read_articles(article_cb);
 ulong	read_article_tags(const char *, article_tag_cb);
 void	read_tags(tag_cb);
@@ -283,15 +284,19 @@ markers_article(const char *m, void *data)
 }
 
 static void
-render_article(const char *aname, const char *title, const struct tm *tm,
-    FILE *fbody, uint nb_comments)
+render_article(const char *aname, const struct tm *tm, FILE *fbody,
+    uint nb_comments)
 {
 	FILE *fin;
+	char title[BUFSIZ];
 	struct data_ac d = { aname, title, tm, fbody, &nb_comments };
 	extern struct page globp;
 
 	if ((fin = open_template("article.html")) == NULL)
 		return;
+	*title = '\0';
+	if (fgets(title, BUFSIZ, fbody) != NULL)
+		title[strcspn(title, "\n")] = '\0';
 	parse_markers(fin, markers_article, &d);
 	fclose(fin);
 	if (globp.type == PAGE_INDEX)
@@ -341,8 +346,7 @@ markers_page(const char *m, void *data)
 			}
 			break;
 		case PAGE_ARTICLE:
-			*buf = '\0';
-			read_article(globp.a.name, NULL, buf, sizeof(buf));
+			get_article_title(globp.a.name, buf, sizeof(buf));
 			if (*buf != '\0') {
 				hputs(TITLE_SEPARATOR);
 				hputs(buf);
@@ -369,8 +373,7 @@ markers_page(const char *m, void *data)
 			read_articles(render_article);
 			break;
 		case PAGE_ARTICLE:
-			if (read_article(globp.a.name, render_article,
-			    NULL, 0) == -1)
+			if (read_article(globp.a.name, render_article) == -1)
 				render_error(ERR_PAGE_ARTICLE);
 #ifdef ENABLE_COMMENTS
 			else
@@ -399,15 +402,17 @@ render_rss_article_tag(const char *tname)
 }
 
 static void
-render_rss_article(const char *aname, const char *title, const struct tm *tm,
-    FILE *fbody, uint _)
+render_rss_article(const char *aname, const struct tm *tm, FILE *fbody, uint _)
 {
 	char body[BUFSIZ], date[RSS_DATE_LENGTH];
 
 	hputs(
 	    "    <item>\n"
 	    "      <title>");
-	hputs(title);
+	if (fgets(body, BUFSIZ, fbody) != NULL) {
+		body[strcspn(body, "\n")] = '\0';
+		hputs(body);
+	}
 	hputs("</title>\n"
 	    "      <link>");
 	hput_url(aname, NULL);
@@ -476,17 +481,16 @@ render_page(void)
 	extern gzFile gz;
 #endif /* ENABLE_GZIP */
 #ifdef ENABLE_STATIC
-	extern int generating_static, from_cmd;
+	extern int generating_static;
 #endif /* ENABLE_STATIC */
 
 #ifdef ENABLE_STATIC
 	if (!generating_static) {
 #endif /* ENABLE_STATIC */
 #ifdef ENABLE_GZIP
-	if (gz != NULL)
-		fputs("Content-Encoding: gzip\r\n", stdout);
+		if (gz != NULL)
+			fputs("Content-Encoding: gzip\r\n", stdout);
 #endif /* ENABLE_GZIP */
-
 		if (globp.type == PAGE_RSS)
 			fputs("Content-type: application/rss+xml;"
 			    "charset="CHARSET"\r\n\r\n", hout);

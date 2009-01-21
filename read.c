@@ -408,10 +408,43 @@ get_mtime(const char *aname)
  */
 
 int
-read_article(const char *aname, article_cb cb, char *atitle, size_t atitle_len)
+get_article_title(const char *aname, char *title, size_t len)
 {
 	FILE *fin;
-	char path[MAXPATHLEN], title[BUFSIZ];
+	char path[MAXPATHLEN];
+
+#ifdef ENABLE_STATIC
+	if (from_cmd)
+		snprintf(path, MAXPATHLEN, CHROOT_DIR ARTICLES_DIR
+		    "/%s/article", aname);
+	else
+#endif /* ENABLE_STATIC */
+		snprintf(path, MAXPATHLEN, ARTICLES_DIR"/%s/article", aname);
+	if ((fin = fopen(path, "r")) == NULL) {
+		if (errno != ENOENT)
+			warn("fopen: %s", path);
+		return -1;
+	}
+	*title ='\0';
+	if (fgets(title, len, fin) == NULL && !feof(fin)) {
+		warn("fgets: %s", path);
+		fclose(fin);
+		return -1;
+	}
+	title[strcspn(title, "\n")] = '\0';
+	fclose(fin);
+	return 0;
+}
+
+/*
+ *
+ */
+
+int
+read_article(const char *aname, article_cb cb)
+{
+	FILE *fin;
+	char path[MAXPATHLEN];
 	struct tm tm;
 
 	memset(&tm, 0, sizeof(struct tm));
@@ -430,19 +463,11 @@ read_article(const char *aname, article_cb cb, char *atitle, size_t atitle_len)
 			warn("fopen: %s", path);
 		return -1;
 	}
-	if (fgets(title, BUFSIZ, fin) == NULL && !feof(fin)) {
-		warn("fgets: %s", path);
-		fclose(fin);
-		return -1;
-	}
-	title[strcspn(title, "\n")] = '\0';
-	if (atitle != NULL)
-		strlcpy(atitle, title, atitle_len);
 	if (cb != NULL)
 #ifdef ENABLE_COMMENTS
-		cb(aname, title, &tm, fin, read_comments(aname, NULL));
+		cb(aname, &tm, fin, read_comments(aname, NULL));
 #else
-		cb(aname, title, &tm, fin, 0);
+		cb(aname, &tm, fin, 0);
 #endif /* ENABLE_COMMENTS */
 	fclose(fin);
 	return 0;
@@ -463,7 +488,7 @@ do_read_articles(const char *aname, void *data)
 	if (d->nb >= nb+NB_ARTICLES)
 		return 0;
 	else if (d->nb >= nb)
-		read_article(aname, d->a_cb, NULL, 0);
+		read_article(aname, d->a_cb);
 	++d->nb;
 	return 1;
 }

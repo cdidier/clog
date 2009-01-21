@@ -24,7 +24,7 @@
 #define FILE_MINLEN 12
 
 typedef void (page_cb)(const char *);
-typedef void (article_cb)(const char *, const char *, const struct tm *,
+typedef void (article_cb)(const char *, const struct tm *,
     FILE *, uint);
 typedef void (article_tag_cb)(const char *);
 typedef void (tag_cb)(const char *, ulong);
