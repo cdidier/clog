@@ -41,6 +41,7 @@ struct data_ac {
 	const char	*title;
 	const struct tm	*tm;
 	FILE		*fbody;
+	FILE		*fresume;
 };
 
 struct data_p {
@@ -109,15 +110,15 @@ static void
 markers_article_comment(const char *m, void *data)
 {
 	struct data_c *d = data;
-	char date[TIME_LENGTH+1], body[BUFSIZ];
+	char buf[BUFSIZ];
 
 	if (strcmp(m, "NAME") == 0) {
 		hput_escaped(d->author);
 	} else if (strcmp(m, "NB") == 0) {
 		hputd(d->nb);
 	} else if (strcmp(m, "DATE") == 0) {
-		strftime(date, TIME_LENGTH+1, TIME_FORMAT, d->tm);
-		hputs(date);
+		strftime(buf, sizeof(buf), TIME_FORMAT, d->tm);
+		hputs(buf);
 	} else if (strcmp(m, "IP") == 0) {
 		hputs(d->ip);
 	} else if (strcmp(m, "MAIL") == 0) {
@@ -133,8 +134,8 @@ markers_article_comment(const char *m, void *data)
 			hputs("\">web</a>");
 		}
 	} else if (strcmp(m, "TEXT") == 0) {
-		while (fgets(body, BUFSIZ, d->fbody) != NULL)
-			hput_escaped(body);
+		while (fgets(buf, sizeof(buf), d->fbody) != NULL)
+			hput_escaped(buf);
 	}
 }
 
@@ -254,20 +255,31 @@ static void
 markers_article(const char *m, void *data)
 {
 	struct data_ac *d = data;
-	char date[TIME_LENGTH+1], body[BUFSIZ];
+	char buf[BUFSIZ];
 	ulong nb_comments;
+	extern struct page globp;
 
 	if (strcmp(m, "TITLE") == 0) {
 		hputs(d->title);
 	} else if (strcmp(m, "DATE") == 0) {
-		strftime(date, TIME_LENGTH+1, TIME_FORMAT, d->tm);
-		hputs(date);
+		strftime(buf, sizeof(buf), TIME_FORMAT, d->tm);
+		hputs(buf);
 	} else if (strcmp(m, "TAGS") == 0) {
 		if (read_article_tags(d->aname, render_article_tag) == 0)
 			hputs(NO_TAG);
 	} else if (strcmp(m, "BODY") == 0) {
-		while (fgets(body, BUFSIZ, d->fbody) != NULL)
-			hputs(body);
+		if (d->fresume != NULL) {
+			while (fgets(buf, sizeof(buf), d->fresume) != NULL)
+				hputs(buf);
+			if (globp.type != PAGE_ARTICLE) {
+				hputs("<p><a href=\"");	
+				hput_url(d->aname, NULL);
+				hputs("\">" NAV_READMORE "</a></p>");
+			}
+		}
+		if (d->fresume == NULL || globp.type == PAGE_ARTICLE)
+			while (fgets(buf, sizeof(buf), d->fbody) != NULL)
+				hputs(buf);
 	} else if (strcmp(m, "URL") == 0) {
 		hput_url(d->aname, NULL);
 #ifdef ENABLE_COMMENTS
@@ -289,11 +301,12 @@ markers_article(const char *m, void *data)
 }
 
 static void
-render_article(const char *aname, const struct tm *tm, FILE *fbody)
+render_article(const char *aname, const struct tm *tm, FILE *fbody,
+    FILE *fresume)
 {
 	FILE *fin;
 	char title[BUFSIZ];
-	struct data_ac d = { aname, title, tm, fbody };
+	struct data_ac d = { aname, title, tm, fbody, fresume };
 	extern struct page globp;
 
 	if ((fin = open_template("article.html")) == NULL)
@@ -406,16 +419,18 @@ render_rss_article_tag(const char *tname)
 }
 
 static void
-render_rss_article(const char *aname, const struct tm *tm, FILE *fbody)
+render_rss_article(const char *aname, const struct tm *tm, FILE *fbody,
+    FILE *fresume)
 {
-	char body[BUFSIZ], date[RSS_DATE_LENGTH];
+	char buf[BUFSIZ];
+	FILE *fin;
 
 	hputs(
 	    "    <item>\n"
 	    "      <title>");
-	if (fgets(body, BUFSIZ, fbody) != NULL) {
-		body[strcspn(body, "\n")] = '\0';
-		hputs(body);
+	if (fgets(buf, sizeof(buf), fbody) != NULL) {
+		buf[strcspn(buf, "\n")] = '\0';
+		hputs(buf);
 	}
 	hputs("</title>\n"
 	    "      <link>");
@@ -424,12 +439,18 @@ render_rss_article(const char *aname, const struct tm *tm, FILE *fbody)
 	read_article_tags(aname, render_rss_article_tag);
 	hputs(
 	    "      <description><![CDATA[");
-	while (fgets(body, BUFSIZ, fbody) != NULL)
-		hputs(body);
+	fin = fresume != NULL ? fresume : fbody;
+	while (fgets(buf, sizeof(buf), fin) != NULL)
+		hputs(buf);
+	if (fin == fresume) {
+		hputs("<p><a href=\"");
+		hput_url(aname, NULL);
+		hputs("\">" NAV_READMORE "</a></p>");
+	}
 	hputs("]]></description>\n"
 	    "      <pubDate>");
-	strftime(date, RSS_DATE_LENGTH, RSS_DATE_FORMAT, tm);
-	hputs(date);
+	strftime(buf, sizeof(buf), RSS_DATE_FORMAT, tm);
+	hputs(buf);
 	hputs("</pubDate>\n"
 	    "      <guid isPermaLink=\"false\">");
 	hputs(aname);

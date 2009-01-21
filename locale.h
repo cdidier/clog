@@ -2,6 +2,7 @@
 
 #define NAV_NEXT	"next"
 #define NAV_PREVIOUS	"previous"
+#define NAV_READMORE	"Read more..."
 
 #define NO_TAG		"none"
 

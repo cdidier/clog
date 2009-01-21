@@ -25,7 +25,7 @@
 
 typedef void (page_cb)(const char *);
 typedef void (tag_cb)(const char *, ulong);
-typedef void (article_cb)(const char *, const struct tm *, FILE *);
+typedef void (article_cb)(const char *, const struct tm *, FILE *, FILE *);
 typedef void (article_tag_cb)(const char *);
 #ifdef ENABLE_COMMENTS
 typedef void (article_comment_cb)(const char *, const struct tm *,

@@ -456,7 +456,7 @@ get_article_title(const char *aname, char *title, size_t len)
 int
 read_article(const char *aname, article_cb cb)
 {
-	FILE *fin;
+	FILE *fbody, *fresume;
 	char path[MAXPATHLEN];
 	struct tm tm;
 
@@ -471,14 +471,24 @@ read_article(const char *aname, article_cb cb)
 	else
 #endif /* ENABLE_STATIC */
 		snprintf(path, MAXPATHLEN, ARTICLES_DIR"/%s/article", aname);
-	if ((fin = fopen(path, "r")) == NULL) {
+	if ((fbody = fopen(path, "r")) == NULL) {
 		if (errno != ENOENT)
 			warn("fopen: %s", path);
 		return -1;
 	}
+#ifdef ENABLE_STATIC
+	if (from_cmd)
+		snprintf(path, MAXPATHLEN, CHROOT_DIR ARTICLES_DIR
+		    "/%s/resume", aname);
+	else
+#endif /* ENABLE_STATIC */
+		snprintf(path, MAXPATHLEN, ARTICLES_DIR"/%s/resume", aname);
+	fresume = fopen(path, "r");
 	if (cb != NULL)
-		cb(aname, &tm, fin);
-	fclose(fin);
+		cb(aname, &tm, fbody, fresume);
+	fclose(fbody);
+	if (fresume != NULL)
+		fclose(fresume);
 	return 0;
 }
 

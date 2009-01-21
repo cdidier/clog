@@ -34,8 +34,6 @@
 /* The format string of the date displayed in the pages (take a look at the
  * man page strftime(3) for the format) */
 #define TIME_FORMAT	"%Y-%m-%d %R"
-/* The maximum number of characters of the formatted date */
-#define TIME_LENGTH	16
 
 /* Parameters of the anti-spam */
 #define JAM_MIN		1
