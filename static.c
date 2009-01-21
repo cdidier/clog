@@ -38,7 +38,7 @@ static char rcsid[] = "$Id$";
 void	render_page();
 int	foreach_article(foreach_article_cb cb, void *data);
 ulong	read_article_tags(const char *, article_tag_cb);
-time_t  get_mtime(const char *);
+time_t  get_article_mtime(const char *);
 long	get_page(const char *);
 
 struct vtag {
@@ -152,7 +152,7 @@ add_static_article(const char *aname)
 }
 
 static time_t
-get_static_mtime(const char *aname)
+get_static_article_mtime(const char *aname)
 {
 	char path[MAXPATHLEN];
 	struct stat sb;
@@ -332,8 +332,8 @@ do_update_static(const char *aname, void *data)
 	time_t mtime;
 	int *mod = data;
 
-	if ((mtime = get_static_mtime(aname)) == 0
-	    || mtime < get_mtime(aname)) {
+	if ((mtime = get_static_article_mtime(aname)) == 0
+	    || mtime < get_article_mtime(aname)) {
 		update_static_article(aname, 1);
 		*mod = 1;
 	}

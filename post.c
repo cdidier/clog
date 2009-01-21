@@ -98,7 +98,7 @@ strchomp(char *s)
 }
 
 static int
-create_comments_dir(const char *aname)
+create_article_comments_dir(const char *aname)
 {
 	struct stat st;
 	char path[MAXPATHLEN];
@@ -114,7 +114,7 @@ create_comments_dir(const char *aname)
 }
 
 static void
-write_comment(void)
+write_article_comment(void)
 {
 	struct stat st;
 	FILE *fout;
@@ -145,7 +145,7 @@ write_comment(void)
 	if (end-path >= MAXPATHLEN)
 		goto err;
 	if ((fout = fopen(path, "w")) == NULL) {
-		if (create_comments_dir(globp.a.name) == -1)
+		if (create_article_comments_dir(globp.a.name) == -1)
 			goto err;
 		if ((fout = fopen(path, "w")) == NULL)
 			goto err;
@@ -192,7 +192,7 @@ verify_jam(const char *jam, const char *hash)
 }
 
 void
-post_comment(const char *aname)
+post_article_comment(const char *aname)
 {
 	char buf[MAX_INPUT_LEN];
 	size_t len;
@@ -249,7 +249,7 @@ post_comment(const char *aname)
 	else if (!verify_jam(jam, jam_hash))
 		globp.a.cform_error = ERR_CFORM_JAM;
 	else {
-		write_comment();
+		write_article_comment();
 		return;
 	}
 out:	render_page();

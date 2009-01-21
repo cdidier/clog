@@ -41,7 +41,6 @@ struct data_ac {
 	const char	*title;
 	const struct tm	*tm;
 	FILE		*fbody;
-	uint		*nb_comments;
 };
 
 struct data_p {
@@ -60,7 +59,8 @@ void	read_tags(tag_cb);
 #endif /* ENABLE_GZIP */
 
 #ifdef ENABLE_COMMENTS
-ulong	read_comments(const char *, comment_cb);
+ulong	read_article_comments(const char *, article_comment_cb);
+ulong	get_article_nb_comments(const char *);
 
 struct data_c {
 	const char	*author;
@@ -69,6 +69,7 @@ struct data_c {
 	const char	*mail;
 	const char	*web;
 	FILE		*fbody;
+	ulong		 nb;
 };
 
 #ifdef ENABLE_POST_COMMENT
@@ -105,13 +106,15 @@ render_error(const char *msg)
 #ifdef ENABLE_COMMENTS
 
 static void
-markers_comment(const char *m, void *data)
+markers_article_comment(const char *m, void *data)
 {
 	struct data_c *d = data;
 	char date[TIME_LENGTH+1], body[BUFSIZ];
 
 	if (strcmp(m, "NAME") == 0) {
 		hput_escaped(d->author);
+	} else if (strcmp(m, "NB") == 0) {
+		hputd(d->nb);
 	} else if (strcmp(m, "DATE") == 0) {
 		strftime(date, TIME_LENGTH+1, TIME_FORMAT, d->tm);
 		hputs(date);
@@ -136,15 +139,15 @@ markers_comment(const char *m, void *data)
 }
 
 static void
-render_comment(const char *author, const struct tm *tm, const char *ip,
-    const char *mail, const char *web, FILE *fbody)
+render_article_comment(const char *author, const struct tm *tm, const char *ip,
+    const char *mail, const char *web, FILE *fbody, ulong nb)
 {
 	FILE *fin;
-	struct data_c d = { author, tm, ip, mail, web, fbody };
+	struct data_c d = { author, tm, ip, mail, web, fbody, nb };
 
 	if ((fin = open_template("comment.html")) == NULL)
 		return;
-	parse_markers(fin, markers_comment, &d);
+	parse_markers(fin, markers_article_comment, &d);
 	fclose(fin);
 }
 
@@ -154,7 +157,7 @@ render_comment(const char *author, const struct tm *tm, const char *ip,
 #define FORM_LEN	sizeof("FORM_")-1
 
 static void
-markers_comment_form(const char *m, void *data)
+markers_article_comment_form(const char *m, void *data)
 {
 	struct data_cf *d = data;
 	extern struct page globp;
@@ -193,7 +196,7 @@ markers_comment_form(const char *m, void *data)
 }
 
 static void
-render_comment_form(const char *aname)
+render_article_comment_form(const char *aname)
 {
 	FILE *fin;
 	int jam1, jam2;
@@ -208,33 +211,33 @@ render_comment_form(const char *aname)
 	strlcpy(salt+1, JAM_SALT, sizeof(JAM_SALT));
 	*salt = jam1+jam2;
 	SHA1Data(salt, sizeof(JAM_SALT), hash);
-	parse_markers(fin, markers_comment_form, &d);
+	parse_markers(fin, markers_article_comment_form, &d);
 	fclose(fin);
 }
 
 #endif /* ENABLE_POST_COMMENT */
 
 static void
-markers_comments(const char *m, void *data)
+markers_article_comments(const char *m, void *data)
 {
 	const char *aname = data;
 
 	if (strcmp(m, "COMMENTS") == 0)
-		read_comments(aname, render_comment);
+		read_article_comments(aname, render_article_comment);
 #ifdef ENABLE_POST_COMMENT
 	else if (strcmp(m, "COMMENT_FORM") == 0)
-		render_comment_form(aname);
+		render_article_comment_form(aname);
 #endif /* ENABLE_POST_COMMENT */
 }
 
 static void
-render_comments(const char *aname)
+render_article_comments(const char *aname)
 {
 	FILE *fin;
 
 	if ((fin = open_template("comments.html")) == NULL)
 		return;
-	parse_markers(fin, markers_comments, (void *)aname);
+	parse_markers(fin, markers_article_comments, (void *)aname);
 	fclose(fin);
 }
 
@@ -252,6 +255,7 @@ markers_article(const char *m, void *data)
 {
 	struct data_ac *d = data;
 	char date[TIME_LENGTH+1], body[BUFSIZ];
+	ulong nb_comments;
 
 	if (strcmp(m, "TITLE") == 0) {
 		hputs(d->title);
@@ -268,7 +272,8 @@ markers_article(const char *m, void *data)
 		hput_url(d->aname, NULL);
 #ifdef ENABLE_COMMENTS
 	} else if (strcmp(m, "NB_COMMENTS") == 0) {
-		switch (*d->nb_comments) {
+		nb_comments = get_article_nb_comments(d->aname);
+		switch (nb_comments) {
 		case 0:
 			hputs("no comment");
 			break;
@@ -276,7 +281,7 @@ markers_article(const char *m, void *data)
 			hputs("1 comment");
 			break;
 		default:
-			hputd(*d->nb_comments);
+			hputd(nb_comments);
 			hputs(" comments");
 		}
 	}
@@ -284,12 +289,11 @@ markers_article(const char *m, void *data)
 }
 
 static void
-render_article(const char *aname, const struct tm *tm, FILE *fbody,
-    uint nb_comments)
+render_article(const char *aname, const struct tm *tm, FILE *fbody)
 {
 	FILE *fin;
 	char title[BUFSIZ];
-	struct data_ac d = { aname, title, tm, fbody, &nb_comments };
+	struct data_ac d = { aname, title, tm, fbody };
 	extern struct page globp;
 
 	if ((fin = open_template("article.html")) == NULL)
@@ -377,7 +381,7 @@ markers_page(const char *m, void *data)
 				render_error(ERR_PAGE_ARTICLE);
 #ifdef ENABLE_COMMENTS
 			else
-				render_comments(globp.a.name);
+				render_article_comments(globp.a.name);
 #endif /* ENABLE_COMMENTS */
 			break;
 		case PAGE_TAG_CLOUD:
@@ -402,7 +406,7 @@ render_rss_article_tag(const char *tname)
 }
 
 static void
-render_rss_article(const char *aname, const struct tm *tm, FILE *fbody, uint _)
+render_rss_article(const char *aname, const struct tm *tm, FILE *fbody)
 {
 	char body[BUFSIZ], date[RSS_DATE_LENGTH];
 

@@ -37,7 +37,7 @@ gzFile	 gz;
 #endif /* ENABLE_GZIP */
 
 #if defined(ENABLE_COMMENTS) && defined(ENABLE_POST_COMMENT)
-void post_comment(const char *);
+void post_article_comment(const char *);
 #endif /* ENABLE_POST_COMMENT */
 
 #ifdef ENABLE_STATIC
@@ -153,7 +153,7 @@ main(int argc, char **argv)
 	} else if ((p = get_params()) != NULL
 	    && (strncmp(p, "20", 2) == 0 || strncmp(p, "19", 2) == 0)) {
 		if (strcmp(getenv("REQUEST_METHOD"), "POST") == 0)
-			post_comment(p);
+			post_article_comment(p);
 		else
 			redirect(p);
 #endif /* POST_COMMENT */

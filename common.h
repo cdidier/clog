@@ -24,16 +24,15 @@
 #define FILE_MINLEN 12
 
 typedef void (page_cb)(const char *);
-typedef void (article_cb)(const char *, const struct tm *,
-    FILE *, uint);
-typedef void (article_tag_cb)(const char *);
 typedef void (tag_cb)(const char *, ulong);
+typedef void (article_cb)(const char *, const struct tm *, FILE *);
+typedef void (article_tag_cb)(const char *);
 #ifdef ENABLE_COMMENTS
-typedef void (comment_cb)(const char *, const struct tm *, const char *,
-    const char *, const char *, FILE *);
+typedef void (article_comment_cb)(const char *, const struct tm *,
+    const char *, const char *, const char *, FILE *, ulong);
 #endif /* ENABLE_COMMENTS */
 
-typedef int (foreach_comment_cb)(const char *, const char *, void *);
+typedef int (foreach_article_comment_cb)(const char *, const char *, void *);
 typedef int (foreach_article_cb)(const char *, void *);
 typedef int (foreach_tag_cb)(const char *, void *);
 

@@ -43,9 +43,9 @@ struct data_foreach {
 		time_t	time;
 	};
 	union {
-		comment_cb	*c_cb;
-		article_cb	*a_cb;
-		tag_cb		*t_cb;
+		article_comment_cb	*c_cb;
+		article_cb		*a_cb;
+		tag_cb			*t_cb;
 		struct {
 			const char	*tag;
 			article_tag_cb	*cb;
@@ -68,7 +68,8 @@ compar_name_desc(const FTSENT **f1, const FTSENT **f2)
 #ifdef ENABLE_COMMENTS
 
 int
-foreach_comment(const char *aname, foreach_comment_cb cb, void *data)
+foreach_article_comment(const char *aname, foreach_article_comment_cb cb,
+    void *data)
 {
 	FTS *fts;
 	FTSENT *e;
@@ -220,7 +221,8 @@ err:	fts_close(fts);
  */
 
 static void
-read_comment(const char *aname, const char *cname, comment_cb cb)
+read_article_comment(const char *aname, const char *cname,
+    article_comment_cb cb, ulong nb)
 {
 	FILE *fin;
 	char path[MAXPATHLEN], buf[BUFSIZ];
@@ -264,7 +266,7 @@ read_comment(const char *aname, const char *cname, comment_cb cb)
 			    COMMENT_MAXLEN);
 	}
 	if (*author != '\0' && cb != NULL)
-		cb(author, &tm, ip, mail, web, fin);
+		cb(author, &tm, ip, mail, web, fin, nb);
 	fclose(fin);
 }
 
@@ -273,24 +275,34 @@ read_comment(const char *aname, const char *cname, comment_cb cb)
  */
 
 int
-do_read_comments(const char *aname, const char *cname, void *data)
+do_read_article_comments(const char *aname, const char *cname, void *data)
 {
 	struct data_foreach *d = data;
 
-	if (d->c_cb != NULL)
-		read_comment(aname, cname, d->c_cb);
 	++d->unb;
+	if (d->c_cb != NULL)
+		read_article_comment(aname, cname, d->c_cb, d->nb);
 	return 1;
 }
 
-ulong
-read_comments(const char *aname, comment_cb cb)
+void
+read_article_comments(const char *aname, article_comment_cb cb)
 {
 	struct data_foreach d;
 
 	d.c_cb = cb;
 	d.unb = 0;
-	foreach_comment(aname, do_read_comments, &d);
+	foreach_article_comment(aname, do_read_article_comments, &d);
+}
+
+ulong
+get_article_nb_comments(const char *aname)
+{
+	struct data_foreach d;
+
+	d.c_cb = NULL;
+	d.unb = 0;
+	foreach_article_comment(aname, do_read_article_comments, &d);
 	return d.unb;
 }
 
@@ -341,7 +353,7 @@ read_article_tags(const char *aname, article_tag_cb cb)
  */
 
 int
-do2_get_mtime_tags(const char *aname, void *data)
+do2_get_article_mtime_tags(const char *aname, void *data)
 {
 	char path[MAXPATHLEN];
 	struct data_foreach *d = data;
@@ -358,13 +370,13 @@ do2_get_mtime_tags(const char *aname, void *data)
 }
 
 int
-do_get_mtime_tags(const char *tname, void *data)
+do_get_article_mtime_tags(const char *tname, void *data)
 {
-	return foreach_article_in_tag(tname, do2_get_mtime_tags, data);
+	return foreach_article_in_tag(tname, do2_get_article_mtime_tags, data);
 }
 
 int
-do_get_mtime_comments(const char *aname, const char *cname, void *data)
+do_get_article_mtime_comments(const char *aname, const char *cname, void *data)
 {
 	char path[MAXPATHLEN];
 	struct stat sb;
@@ -378,7 +390,7 @@ do_get_mtime_comments(const char *aname, const char *cname, void *data)
 }
 
 time_t
-get_mtime(const char *aname)
+get_article_mtime(const char *aname)
 {
 	char path[MAXPATHLEN];
 	struct data_foreach d;
@@ -394,10 +406,11 @@ get_mtime(const char *aname)
 	if (stat(path, &sb) != -1) {
 		if (sb.st_mtime > d.time)
 			d.time = sb.st_mtime;
-		foreach_comment(aname, do_get_mtime_comments, &d.time);
+		foreach_article_comment(aname, do_get_article_mtime_comments,
+		    &d.time);
 	}
 	d.name = aname;
-	foreach_tag(do_get_mtime_tags, &d);
+	foreach_tag(do_get_article_mtime_tags, &d);
 	return d.time;
 }
 
@@ -464,11 +477,7 @@ read_article(const char *aname, article_cb cb)
 		return -1;
 	}
 	if (cb != NULL)
-#ifdef ENABLE_COMMENTS
-		cb(aname, &tm, fin, read_comments(aname, NULL));
-#else
-		cb(aname, &tm, fin, 0);
-#endif /* ENABLE_COMMENTS */
+		cb(aname, &tm, fin);
 	fclose(fin);
 	return 0;
 }
