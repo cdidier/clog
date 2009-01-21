@@ -8,7 +8,7 @@
 
 #define SITE_NAME	"C'log"
 #define DESCRIPTION	"Colin Didier's web journal."
-#define COPYRIGHT	"Copyright &#169; 2008 <a href=\"mailto:cdidier+clog@cybione.org\">Colin Didier</a>; All right reserved/Tous droits r&eacute;serv&eacute;s."
+#define COPYRIGHT	"Copyright &#169; 2008-2009 <a href=\"mailto:cdidier+clog@cybione.org\">Colin Didier</a>; All right reserved/Tous droits r&eacute;serv&eacute;s."
 #define CHARSET		"UTF-8"
 #define TITLE_SEPARATOR	" - "
 
