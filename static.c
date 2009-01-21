@@ -344,7 +344,9 @@ void
 update_static(void)
 {
 	int mod = 0;
+	extern int generating_static;
 
+	generating_static = 1;
 	foreach_article(do_update_static, &mod);
 	if (mod)
 		gen_tags();	
