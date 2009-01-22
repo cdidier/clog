@@ -136,89 +136,92 @@ hput_escaped(const char *s)
 }
 
 void
-hput_url(const char *first_level, const char *second_level)
+hput_url(int type, const char *name, ulong page)
 {
 #ifdef ENABLE_STATIC
 	extern int follow_url;
-
-	hputs(BASE_URL);
-#else
-	hputs(BIN_URL);
 #endif /* ENABLE_STATIC */
-	if (first_level != NULL) {
-#ifndef ENABLE_STATIC
-	hputc('/');
-#endif /*! ENABLE_STATIC */
-		hputs(first_level);
-		if (second_level != NULL) {
+
+	if (type == PAGE_UNKNOWN)
+		hput_escaped(name);
+	else {
+#ifdef ENABLE_STATIC
+		hputs(BASE_URL);
+#else
+		hputs(BIN_URL);
+		if (type != PAGE_INDEX && name != NULL)
+			hputc('/');
+#endif /* ENABLE_STATIC */
+		switch (type) {
+		case PAGE_INDEX:
+			if (name == NULL) {
+#ifdef ENABLE_STATIC
+				if (page > 0)
+					hputs("index");
+#endif /* ENABLE_STATIC */
+			} else {
+				hputs("tag");
+#ifdef ENABLE_STATIC
+				hputc('_');
+#else
+				hputc('/');
+#endif /* ENABLE_STATIC */
+				hputs(name);
+			}
+			if (page > 0) {
+#ifdef ENABLE_STATIC
+				hputc('_');
+				hputd(page);
+				hputs(".html");
+#else
+				hputs("?p=");
+				hputd(page);
+#endif /* ENABLE_STATIC */
+			}
+#ifdef ENABLE_STATIC
+			if (follow_url)
+				add_static_tag(name, page);
+#endif /* ENABLE_STATIC */
+			break;
+		case PAGE_ARTICLE:
+			hputs(name);
+#ifdef ENABLE_STATIC
+			hputs(".html");
+			if (follow_url)
+				add_static_article(name);
+#endif /* ENABLE_STATIC */
+			break;
+		case PAGE_RSS:
+			hputs("rss");
 #ifdef ENABLE_STATIC
 			hputc('_');
 #else
 			hputc('/');
 #endif /* ENABLE_STATIC */
-			hputs(second_level);
+			if (name != NULL)
+				hputs(name);
 #ifdef ENABLE_STATIC
-			if (strcmp(first_level, "rss") == 0)
-				hputs(".xml");
-			else
-				hputs(".html");
-		} else if (strcmp(first_level, "rss") == 0)
 			hputs(".xml");
-		else
-			hputs(".html");
-#else
-		}
 #endif /* ENABLE_STATIC */
-	}
+			break;
+		case PAGE_TAG_CLOUD:
+			hputs("tags");
 #ifdef ENABLE_STATIC
-	if (follow_url && first_level != NULL && second_level == NULL
-	    && (strncmp(first_level, "20", 2) == 0
-	    || strncmp(first_level, "19", 2) == 0))
-		add_static_article(first_level);
+			hputs(".html");
 #endif /* ENABLE_STATIC */
+			break;
+		}
+	}
 }
 
 void
-hput_pagelink(const char *tname, long page, const char *text)
+hput_pagelink(int type, const char *name, ulong page, const char *text)
 {
-#ifdef ENABLE_STATIC
-	extern int follow_url;
-#endif /* ENABLE_STATIC */
-
 	hputs("<a href=\"");
-#ifdef ENABLE_STATIC
-	hput_url(NULL, NULL);
-	if (page > 0) {
-		if (tname != NULL) {
-			hputs("tag_");
-			hputs(tname);
-		} else
-			hputs("index");
-		hputc('_');
-		hputd(page);
-		hputs(".html");
-	} else if (tname != NULL) {
-		hputs("tag_");
-		hputs(tname);
-		hputs(".html");
-	}
-#else
-	if (tname != NULL)
-		hput_url("tag", tname);
-	else
-		hput_url(NULL, NULL);
-	if (page > 0) {
-		hputs("?p=");
-		hputd(page);
-	}
-#endif /* ENABLE_STATIC */
+	hput_url(type, name, page);
 	hputs("\">");
-	hputs(text);
+	hput_escaped(text);
 	hputs("</a>");
-#ifdef ENABLE_STATIC
-	if (follow_url)
-		add_static_tag(tname, page);
-#endif /* ENABLE_STATIC */
 }
 
 static int
@@ -227,7 +230,7 @@ hput_generic_markers(const char *m)
 	extern struct page globp;
 
 	if (strcmp(m, "BASE_URL") == 0)
-		hput_url(NULL, NULL);
+		hput_url(PAGE_INDEX, NULL, 0);
 	else if (strcmp(m, "SITE_NAME") == 0)
 		hputs(SITE_NAME);
 	else if (strcmp(m, "DESCRIPTION") == 0)
@@ -245,9 +248,9 @@ hput_generic_markers(const char *m)
 		}
 	} else if (strcmp(m, "RSS_URL") == 0) {
 		if (globp.type == PAGE_INDEX)
-			hput_url("rss", globp.i.tag);
+			hput_url(PAGE_RSS, globp.i.tag, 0);
 		else
-			hput_url("rss", NULL);
+			hput_url(PAGE_RSS, NULL, 0);
 	} else
 		return 0;
 	return 1;

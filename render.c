@@ -124,11 +124,8 @@ markers_article_comment(const char *m, void *data)
 			hputs("\">mail</a>");
 		}
 	} else if (strcmp(m, "WEB") == 0) {
-		if (*d->web != '\0') {
-			hputs("<a href=\"");
-			hput_escaped(d->web);
-			hputs("\">web</a>");
-		}
+		if (*d->web != '\0')
+			hput_pagelink(PAGE_UNKNOWN, d->web, 0, "web");
 	} else if (strcmp(m, "TEXT") == 0) {
 		while (fgets(buf, sizeof(buf), d->fbody) != NULL) {
 			buf[strcspn(buf, "\n")] = '\0';
@@ -148,11 +145,7 @@ markers_article_comment(const char *m, void *data)
 						*b = '\0';
 					}
 				--b;
-				hputs("<a href=\"");
-				hput_escaped(a);
-				hputs("\">");
-				hput_escaped(a);
-				hputs("</a>");
+				hput_pagelink(PAGE_UNKNOWN, a, 0, a);
 				*b = c;
 			}
 			hput_escaped(a);
@@ -257,7 +250,7 @@ render_article_comments(const char *aname)
 static void
 render_article_tag(const char *tname)
 {
-	hput_pagelink(tname, 0, tname);
+	hput_pagelink(PAGE_INDEX, tname, 0, tname);
 	hputc(' ');
 }
 
@@ -281,17 +274,15 @@ markers_article(const char *m, void *data)
 		if (d->fresume != NULL) {
 			while (fgets(buf, sizeof(buf), d->fresume) != NULL)
 				hputs(buf);
-			if (globp.type != PAGE_ARTICLE) {
-				hputs("<p><a href=\"");	
-				hput_url(d->aname, NULL);
-				hputs("\">" NAV_READMORE "</a></p>");
-			}
+			if (globp.type != PAGE_ARTICLE)
+				hput_pagelink(PAGE_ARTICLE, d->aname, 0,
+				    NAV_READMORE);
 		}
 		if (d->fresume == NULL || globp.type == PAGE_ARTICLE)
 			while (fgets(buf, sizeof(buf), d->fbody) != NULL)
 				hputs(buf);
 	} else if (strcmp(m, "URL") == 0) {
-		hput_url(d->aname, NULL);
+		hput_url(PAGE_ARTICLE, d->aname, 0);
 #ifdef ENABLE_COMMENTS
 	} else if (strcmp(m, "NB_COMMENTS") == 0) {
 		nb_comments = get_article_nb_comments(d->aname);
@@ -332,7 +323,7 @@ render_tag(const char *tname, ulong nb_articles)
 	hputs("<span style=\"font-size: ");
 	hputd(nb_articles*TAG_CLOUD_THRES+100);
 	hputs("%\">");
-	hput_pagelink(tname, 0, tname);
+	hput_pagelink(PAGE_INDEX, tname, 0, tname);
 	hputs("</span> ");
 }
 
@@ -376,11 +367,12 @@ markers_page(const char *m, void *data)
 		}
 	} else if (strcmp(m, "NEXT") == 0) {
 		if (globp.type == PAGE_INDEX && globp.i.page > 0)
-			hput_pagelink(globp.i.tag, globp.i.page-1, NAV_NEXT);
+			hput_pagelink(PAGE_INDEX, globp.i.tag, globp.i.page-1,
+			    NAV_NEXT);
 	} else if (strcmp(m, "PREVIOUS") == 0) {
 		if (globp.type == PAGE_INDEX
 		    && globp.i.nb_articles > NB_ARTICLES)
-			hput_pagelink(globp.i.tag, globp.i.page+1,
+			hput_pagelink(PAGE_INDEX, globp.i.tag, globp.i.page+1,
 			    NAV_PREVIOUS);
 	} else if (strcmp(m, "BODY") == 0) {
 		switch (globp.type) {
@@ -435,7 +427,7 @@ render_rss_article(const char *aname, const struct tm *tm, FILE *fbody,
 	}
 	hputs("</title>\n"
 	    "      <link>");
-	hput_url(aname, NULL);
+	hput_url(PAGE_ARTICLE, aname, 0);
 	hputs("</link>\n");
 	read_article_tags(aname, render_rss_article_tag);
 	hputs(
@@ -444,9 +436,7 @@ render_rss_article(const char *aname, const struct tm *tm, FILE *fbody,
 	while (fgets(buf, sizeof(buf), fin) != NULL)
 		hputs(buf);
 	if (fin == fresume) {
-		hputs("<p><a href=\"");
-		hput_url(aname, NULL);
-		hputs("\">" NAV_READMORE "</a></p>");
+		hput_pagelink(PAGE_ARTICLE, aname, 0, NAV_READMORE);
 	}
 	hputs("]]></description>\n"
 	    "      <pubDate>");
@@ -471,7 +461,7 @@ render_rss(void)
 	    "<rss version=\"2.0\" xmlns:atom=\"http://www.w3.org/2005/Atom\">\n"
 	    "  <channel>\n"
 	    "    <atom:link href=\"");
-	hput_url("rss", globp.i.tag);
+	hput_url(PAGE_RSS, globp.i.tag, 0);
 	hputs("\" rel=\"self\" type=\"application/rss+xml\" />\n"
 	    "    <title>");
 	hputs(SITE_NAME);
@@ -481,7 +471,7 @@ render_rss(void)
 	}
 	hputs("</title>\n"
 	    "    <link>");
-	hput_url(NULL, NULL);
+	hput_url(PAGE_INDEX, NULL, 0);
 	hputs("</link>\n"
 	    "    <description>");
 	hputs(DESCRIPTION);
