@@ -154,12 +154,7 @@ hput_url(int type, const char *name, ulong page)
 #endif /* ENABLE_STATIC */
 		switch (type) {
 		case PAGE_INDEX:
-			if (name == NULL) {
-#ifdef ENABLE_STATIC
-				if (page > 0)
-					hputs("index");
-#endif /* ENABLE_STATIC */
-			} else {
+			if (name != NULL) {
 				hputs("tag");
 #ifdef ENABLE_STATIC
 				hputc('_');
@@ -170,15 +165,18 @@ hput_url(int type, const char *name, ulong page)
 			}
 			if (page > 0) {
 #ifdef ENABLE_STATIC
+				if (name == NULL)
+					hputs("index");
 				hputc('_');
 				hputd(page);
-				hputs(".html");
 #else
 				hputs("?p=");
 				hputd(page);
 #endif /* ENABLE_STATIC */
 			}
 #ifdef ENABLE_STATIC
+			if (page > 0 || name != NULL)
+				hputs(".html");
 			if (follow_url)
 				add_static_tag(name, page);
 #endif /* ENABLE_STATIC */
@@ -193,13 +191,14 @@ hput_url(int type, const char *name, ulong page)
 			break;
 		case PAGE_RSS:
 			hputs("rss");
+			if (name != NULL) {
 #ifdef ENABLE_STATIC
-			hputc('_');
+				hputc('_');
 #else
-			hputc('/');
+				hputc('/');
 #endif /* ENABLE_STATIC */
-			if (name != NULL)
 				hputs(name);
+			}
 #ifdef ENABLE_STATIC
 			hputs(".xml");
 #endif /* ENABLE_STATIC */
