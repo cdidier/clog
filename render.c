@@ -42,7 +42,7 @@ struct data_ac {
 	const char	*title;
 	const struct tm	*tm;
 	FILE		*fbody;
-	FILE		*fresume;
+	FILE		*fmore;
 };
 
 struct data_p {
@@ -271,16 +271,17 @@ markers_article(const char *m, void *data)
 		if (read_article_tags(d->aname, render_article_tag) == 0)
 			hputs(NO_TAG);
 	} else if (strcmp(m, "BODY") == 0) {
-		if (d->fresume != NULL) {
-			while (fgets(buf, sizeof(buf), d->fresume) != NULL)
-				hputs(buf);
-			if (globp.type != PAGE_ARTICLE)
+		while (fgets(buf, sizeof(buf), d->fbody) != NULL)
+			hputs(buf);
+		if (d->fmore != NULL) {
+			if (globp.type == PAGE_ARTICLE)
+				while (fgets(buf, sizeof(buf), d->fmore) !=
+				    NULL)
+					hputs(buf);
+			else
 				hput_pagelink(PAGE_ARTICLE, d->aname, 0,
 				    NAV_READMORE);
 		}
-		if (d->fresume == NULL || globp.type == PAGE_ARTICLE)
-			while (fgets(buf, sizeof(buf), d->fbody) != NULL)
-				hputs(buf);
 	} else if (strcmp(m, "URL") == 0) {
 		hput_url(PAGE_ARTICLE, d->aname, 0);
 #ifdef ENABLE_COMMENTS
@@ -303,10 +304,10 @@ markers_article(const char *m, void *data)
 
 static void
 render_article(const char *aname, const struct tm *tm, FILE *fbody,
-    FILE *fresume)
+    FILE *fmore)
 {
 	char title[BUFSIZ];
-	struct data_ac d = { aname, title, tm, fbody, fresume };
+	struct data_ac d = { aname, title, tm, fbody, fmore };
 	extern struct page globp;
 
 	*title = '\0';
@@ -413,10 +414,9 @@ render_rss_article_tag(const char *tname)
 
 static void
 render_rss_article(const char *aname, const struct tm *tm, FILE *fbody,
-    FILE *fresume)
+    FILE *fmore)
 {
 	char buf[BUFSIZ];
-	FILE *fin;
 
 	hputs(
 	    "    <item>\n"
@@ -432,12 +432,10 @@ render_rss_article(const char *aname, const struct tm *tm, FILE *fbody,
 	read_article_tags(aname, render_rss_article_tag);
 	hputs(
 	    "      <description><![CDATA[");
-	fin = fresume != NULL ? fresume : fbody;
-	while (fgets(buf, sizeof(buf), fin) != NULL)
+	while (fgets(buf, sizeof(buf), fbody) != NULL)
 		hputs(buf);
-	if (fin == fresume) {
+	if (fmore != NULL)
 		hput_pagelink(PAGE_ARTICLE, aname, 0, NAV_READMORE);
-	}
 	hputs("]]></description>\n"
 	    "      <pubDate>");
 	strftime(buf, sizeof(buf), RSS_DATE_FORMAT, tm);

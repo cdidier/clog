@@ -402,7 +402,7 @@ get_article_mtime(const char *aname)
 		return 0;
 	d.time = sb.st_mtime;
 	snprintf(path, MAXPATHLEN, CHROOT_DIR ARTICLES_DIR
-	    "/%s/resume", aname);
+	    "/%s/more", aname);
 	if (stat(path, &sb) != -1)
 		if (sb.st_mtime > d.time)
 			d.time = sb.st_mtime;
@@ -461,7 +461,7 @@ get_article_title(const char *aname, char *title, size_t len)
 int
 read_article(const char *aname, article_cb cb)
 {
-	FILE *fbody, *fresume;
+	FILE *fbody, *fmore;
 	char path[MAXPATHLEN];
 	struct tm tm;
 
@@ -484,16 +484,16 @@ read_article(const char *aname, article_cb cb)
 #ifdef ENABLE_STATIC
 	if (from_cmd)
 		snprintf(path, MAXPATHLEN, CHROOT_DIR ARTICLES_DIR
-		    "/%s/resume", aname);
+		    "/%s/more", aname);
 	else
 #endif /* ENABLE_STATIC */
-		snprintf(path, MAXPATHLEN, ARTICLES_DIR"/%s/resume", aname);
-	fresume = fopen(path, "r");
+		snprintf(path, MAXPATHLEN, ARTICLES_DIR"/%s/more", aname);
+	fmore = fopen(path, "r");
 	if (cb != NULL)
-		cb(aname, &tm, fbody, fresume);
+		cb(aname, &tm, fbody, fmore);
 	fclose(fbody);
-	if (fresume != NULL)
-		fclose(fresume);
+	if (fmore != NULL)
+		fclose(fmore);
 	return 0;
 }
 

@@ -50,9 +50,9 @@ For example:
 	ARTICLES_DIR/200811121418a/article
 	ARTICLES_DIR/200811151212/article
 
-It is possible to write a resume of the article (which will be displayed
-in the index and in the RSS feed) in the file:
-	ARTICLES_DIR/YYYYMMDDHHmm/resume
+It is possible to write the continuation of the article (which will not
+be displayed in the index and in the RSS feed) in the file:
+	ARTICLES_DIR/YYYYMMDDHHmm/more
 
 The comments are stored in the directory "comments" of the associated
 article directory, using the following format "YYYYMMDDHHmm[a-z]*". So
