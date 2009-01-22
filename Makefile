@@ -21,7 +21,7 @@ CFLAGS+=-DENABLE_STATIC
 
 PROG=blog
 CFLAGS+=-W -Wall -Wpointer-arith -Wbad-function-cast
-SRCS+= main.c post.c read.c render.c render_tools.c static.c
+SRCS+= main.c output.c post.c read.c render.c static.c
 OBJS= ${SRCS:.c=.o}
 
 all: ${PROG}

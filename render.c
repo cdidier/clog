@@ -35,7 +35,7 @@ static char rcsid[] = "$Id$";
 #endif
 
 #include "common.h"
-#include "render_tools.h"
+#include "output.h"
 
 struct data_ac {
 	const char	*aname;

@@ -34,7 +34,7 @@ static char rcsid[] = "$Id$";
 #endif
 
 #include "common.h"
-#include "render_tools.h"
+#include "output.h"
 
 #ifdef ENABLE_GZIP
 #include <zlib.h>
