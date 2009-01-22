@@ -51,24 +51,6 @@ extern int from_cmd, generating_static;
 
 extern FILE	*hout;
 
-FILE *
-open_template(const char *file)
-{
-	FILE *fin;
-	char path[MAXPATHLEN];
-
-#ifdef ENABLE_STATIC
-	if (from_cmd)
-		snprintf(path, MAXPATHLEN, CHROOT_DIR TEMPLATES_DIR "/%s",
-		   file);
-	else
-#endif /* ENABLE_STATIC */
-		snprintf(path, MAXPATHLEN, TEMPLATES_DIR "/%s", file);
-	if ((fin = fopen(path, "r")) == NULL)
-		 warn("fopen: %s", path);
-	return fin;
-}
-
 void
 hputc(const char c)
 {
@@ -272,10 +254,22 @@ hput_generic_markers(const char *m)
 }
 
 void
-parse_markers(FILE *fin, parse_markers_cb cb, void *data)
+parse_template(const char *file, parse_markers_cb cb, void *data)
 {
-	char buf[BUFSIZ], *a, *b;
+	char path[MAXPATHLEN], buf[BUFSIZ], *a, *b;
+	FILE *fin;
 
+#ifdef ENABLE_STATIC
+	if (from_cmd)
+		snprintf(path, MAXPATHLEN, CHROOT_DIR TEMPLATES_DIR "/%s",
+		   file);
+	else
+#endif /* ENABLE_STATIC */
+		snprintf(path, MAXPATHLEN, TEMPLATES_DIR "/%s", file);
+	if ((fin = fopen(path, "r")) == NULL) {
+		 warn("fopen: %s", path);
+		 return;
+	}
 	while (fgets(buf, BUFSIZ, fin) != NULL) {
 		buf[strcspn(buf, "\n")] = '\0';
 		for (a = buf; (b = strstr(a, MARKER_TAG)) != NULL; a = b+2) {

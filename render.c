@@ -97,12 +97,7 @@ markers_error(const char *m, void *data)
 static void
 render_error(const char *msg)
 {
-	FILE *fin;
-
-	if ((fin = open_template("error.html")) == NULL)
-		return;
-	parse_markers(fin, markers_error, (void *)msg);
-	fclose(fin);
+	parse_template("error.html", markers_error, (void *)msg);
 }
 
 #ifdef ENABLE_COMMENTS
@@ -170,13 +165,9 @@ static void
 render_article_comment(const char *author, const struct tm *tm, const char *ip,
     const char *mail, const char *web, FILE *fbody, ulong nb)
 {
-	FILE *fin;
 	struct data_c d = { author, tm, ip, mail, web, fbody, nb };
 
-	if ((fin = open_template("comment.html")) == NULL)
-		return;
-	parse_markers(fin, markers_article_comment, &d);
-	fclose(fin);
+	parse_template("comment.html", markers_article_comment, &d);
 }
 
 #ifdef ENABLE_POST_COMMENT
@@ -226,21 +217,17 @@ markers_article_comment_form(const char *m, void *data)
 static void
 render_article_comment_form(const char *aname)
 {
-	FILE *fin;
 	int jam1, jam2;
 	char salt[sizeof(JAM_SALT)+1], hash[SHA1_DIGEST_STRING_LENGTH];
 	struct data_cf d = { aname, hash, &jam1, &jam2 };
 
-	if ((fin = open_template("comment_form.html")) == NULL)
-		return;
 	srand(time(NULL));
 	jam1 = rand()%(JAM_MAX-JAM_MIN+1) + JAM_MIN;
 	jam2 = rand()%(JAM_MAX-JAM_MIN+1) + JAM_MIN;
 	strlcpy(salt+1, JAM_SALT, sizeof(JAM_SALT));
 	*salt = jam1+jam2;
 	SHA1Data(salt, sizeof(JAM_SALT), hash);
-	parse_markers(fin, markers_article_comment_form, &d);
-	fclose(fin);
+	parse_template("comment_form.html", markers_article_comment_form, &d);
 }
 
 #endif /* ENABLE_POST_COMMENT */
@@ -261,12 +248,8 @@ markers_article_comments(const char *m, void *data)
 static void
 render_article_comments(const char *aname)
 {
-	FILE *fin;
-
-	if ((fin = open_template("comments.html")) == NULL)
-		return;
-	parse_markers(fin, markers_article_comments, (void *)aname);
-	fclose(fin);
+	parse_template("comments.html", markers_article_comments,
+	    (void *)aname);
 }
 
 #endif /* ENABLE_COMMENTS */
@@ -331,18 +314,14 @@ static void
 render_article(const char *aname, const struct tm *tm, FILE *fbody,
     FILE *fresume)
 {
-	FILE *fin;
 	char title[BUFSIZ];
 	struct data_ac d = { aname, title, tm, fbody, fresume };
 	extern struct page globp;
 
-	if ((fin = open_template("article.html")) == NULL)
-		return;
 	*title = '\0';
 	if (fgets(title, BUFSIZ, fbody) != NULL)
 		title[strcspn(title, "\n")] = '\0';
-	parse_markers(fin, markers_article, &d);
-	fclose(fin);
+	parse_template("article.html", markers_article, &d);
 	if (globp.type == PAGE_INDEX)
 		++globp.i.nb_articles;
 }
@@ -367,12 +346,7 @@ markers_tag_cloud(const char *m, void *data)
 static void
 render_tag_cloud(void)
 {
-	FILE *fin;
-
-	if ((fin = open_template("tags.html")) == NULL)
-		return;
-	parse_markers(fin, markers_tag_cloud, NULL);
-	fclose(fin);
+	parse_template("tags.html", markers_tag_cloud, NULL);
 }
 
 static void
@@ -526,7 +500,6 @@ render_rss(void)
 void
 render_page(void)
 {
-	FILE *fin;
 	extern struct page globp;
 	extern FILE *hout;
 #ifdef ENABLE_GZIP
@@ -556,11 +529,8 @@ render_page(void)
 	if (globp.type == PAGE_RSS)
 		render_rss();
 	else {
-		if ((fin = open_template("page.html")) == NULL)
-			return;
 		if (globp.type == PAGE_INDEX)
 			globp.i.nb_articles = 0;
-		parse_markers(fin, markers_page, NULL);
-		fclose(fin);
+		parse_template("page.html", markers_page, NULL);
 	}
 }
