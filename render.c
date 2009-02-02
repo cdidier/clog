@@ -149,7 +149,7 @@ markers_article_comment(const char *m, void *data)
 				*b = c;
 			}
 			hput_escaped(a);
-			hputc('\n');
+			hputs("<br>\n");
 		}
 	}
 }
