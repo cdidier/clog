@@ -30,10 +30,10 @@ static char rcsid[] = "$Id$";
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#ifndef LINUX
-#include <sha1.h>
-#else
+#ifdef __linux__
 #include "openbsd-compat/sha1.h"
+#else
+#include <sha1.h>
 #endif
 
 #include "common.h"

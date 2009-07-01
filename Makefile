@@ -6,13 +6,11 @@ CFLAGS+=-DENABLE_COMMENTS
 # Uncomment to allow visitors to post comments
 CFLAGS+=-DENABLE_POST_COMMENT
 
-
 # Uncomment to enable the static mode
 CFLAGS+=-DENABLE_STATIC
 
-# Uncomment to build on Linux
-#CFLAGS+=-DLINUX
-#SRCS+=openbsd-compat/sha1.c openbsd-compat/strlcpy.c openbsd-compat/strtonum.c
+# OS compatibility (e.g. Linux)
+#COMPAT_SRCS = openbsd-compat/sha1.c openbsd-compat/strlcpy.c openbsd-compat/strtonum.c
 
 ### Usually you don't need to edit the following
 
@@ -20,7 +18,7 @@ PROG=blog
 CFLAGS+=-W -Wall -Wpointer-arith -Wbad-function-cast
 LDFLAGS+=-lz
 
-SRCS+= main.c output.c post.c read.c render.c static.c
+SRCS+= main.c output.c post.c read.c render.c static.c ${COMPAT_SRCS}
 OBJS= ${SRCS:.c=.o}
 
 all: ${PROG}

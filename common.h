@@ -9,7 +9,7 @@
 #include "config.h"
 #include "locale.h"
 
-#ifdef LINUX
+#ifdef __linux__
 #include "openbsd-compat/openbsd-compat.h"
 #endif
 
