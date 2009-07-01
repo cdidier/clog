@@ -2,7 +2,7 @@
 
 /* The URL of the blog base directory (very useful when using the static
  * mode) */
-#define	BASE_URL	"http://cybione.org/~cdidier/log/"
+#define	BASE_URL	"http://cybione.org/~cdidier/blog/"
 /* The URL of compiled binary of the blog engine */
 #define BIN_URL		"http://cybione.org/~cdidier/cgi-bin/blog"
 
@@ -17,7 +17,7 @@
 #endif /* ENABLE_STATIC */
 
 /* Where the static pages are written */
-#define BASE_DIR	"/users/cdidier/log"
+#define BASE_DIR	"/users/cdidier/blog"
 /* Where the templates are stored */
 #define TEMPLATES_DIR	BASE_DIR"/src/templates"
 /* Where the articles are stored */
@@ -29,7 +29,7 @@
 #define NB_ARTICLES	5
 /* Factor used to render the tag cloud (you should adjust it according
  * to the number of article) */
-#define TAG_CLOUD_THRES	10
+#define TAG_CLOUD_THRES	30
 
 /* The format string of the date displayed in the pages (take a look at the
  * man page strftime(3) for the format) */
