@@ -26,15 +26,12 @@ static char rcsid[] = "$Id$";
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <zlib.h>
 
 #include "common.h"
 
 void render_page(void);
 
-#ifdef ENABLE_GZIP
-#include <zlib.h>
-gzFile	 gz;
-#endif /* ENABLE_GZIP */
 
 #if defined(ENABLE_COMMENTS) && defined(ENABLE_POST_COMMENT)
 void post_article_comment(const char *);
@@ -48,6 +45,7 @@ int from_cmd, follow_url, generating_static;
 #endif /* ENABLE_STATIC */
 
 FILE		*hout;
+gzFile		 gz;
 struct page	 globp;
 
 static char *
@@ -84,8 +82,6 @@ parse_query(void)
 	}
 }
 
-#ifdef ENABLE_GZIP
-
 static void
 enable_gzip(void)
 {
@@ -102,8 +98,6 @@ enable_gzip(void)
 			warnx("gzdopen");
 	}
 }
-
-#endif /* ENABLE_GZIP */
 
 void
 redirect(const char *aname)
@@ -131,10 +125,8 @@ main(int argc, char **argv)
 {
 	char *p;
 
-#ifdef ENABLE_GZIP
 	gz = NULL;
 	enable_gzip();
-#endif /* ENABLE_GZIP */
 	hout = stdout;
 	memset(&globp, 0, sizeof(struct page));
 	parse_query();
@@ -190,11 +182,9 @@ main(int argc, char **argv)
 #endif /* ENABLE_STATIC */
 
 out:
-#ifdef ENABLE_GZIP
 	if (gz != NULL)
 		gzclose(gz);
 	else
-#endif /* ENABLE_GZIP */
 		fflush(hout);
 	return 0;
 }

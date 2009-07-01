@@ -26,6 +26,7 @@ static char rcsid[] = "$Id$";
 #include <string.h>
 #include <sys/param.h>
 #include <sys/types.h>
+#include <zlib.h>
 
 #ifndef LINUX
 #include <sha1.h>
@@ -36,10 +37,6 @@ static char rcsid[] = "$Id$";
 #include "common.h"
 #include "output.h"
 
-#ifdef ENABLE_GZIP
-#include <zlib.h>
-extern gzFile	 gz;
-#endif /* ENABLE_GZIP */
 
 #ifdef ENABLE_STATIC
 void	add_static_tag(const char *, long);
@@ -50,11 +47,11 @@ extern int from_cmd, generating_static;
 #define MARKER_TAG "%%"
 
 extern FILE	*hout;
+extern gzFile	 gz;
 
 void
 hputc(const char c)
 {
-#ifdef ENABLE_GZIP
 #ifdef ENABLE_STATIC
 	if (gz != NULL && !generating_static)
 #else
@@ -62,14 +59,12 @@ hputc(const char c)
 #endif /* ENABLE_STATIC */
 		gzputc(gz, c);
 	else
-#endif /* ENABLE_GZIP */
 		fputc(c, hout);
 }
 
 void
 hputs(const char *s)
 {
-#ifdef ENABLE_GZIP
 #ifdef ENABLE_STATIC
 	if (gz != NULL && !generating_static)
 #else
@@ -77,14 +72,12 @@ hputs(const char *s)
 #endif /* ENABLE_STATIC */
 		gzputs(gz, s);
 	else
-#endif /* ENABLE_GZIP */
 		fputs(s, hout);
 }
 
 void
 hputd(const long long l)
 {
-#ifdef ENABLE_GZIP
 #ifdef ENABLE_STATIC
 	if (gz != NULL && !generating_static)
 #else
@@ -92,7 +85,6 @@ hputd(const long long l)
 #endif /* ENABLE_STATIC */
 		gzprintf(gz, "%lld", l);
 	else
-#endif /* ENABLE_GZIP */
 		fprintf(hout, "%lld", l);
 }
 

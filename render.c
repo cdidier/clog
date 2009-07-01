@@ -27,6 +27,7 @@ static char rcsid[] = "$Id$";
 #include <string.h>
 #include <sys/param.h>
 #include <sys/types.h>
+#include <zlib.h>
 
 #ifndef LINUX
 #include <sha1.h>
@@ -55,10 +56,6 @@ int	get_article_title(const char *, char *, size_t);
 void	read_articles(article_cb);
 ulong	read_article_tags(const char *, article_tag_cb);
 void	read_tags(tag_cb);
-
-#ifdef ENABLE_GZIP
-#include <zlib.h>
-#endif /* ENABLE_GZIP */
 
 #ifdef ENABLE_COMMENTS
 ulong	read_article_comments(const char *, article_comment_cb);
@@ -490,9 +487,7 @@ render_page(void)
 {
 	extern struct page globp;
 	extern FILE *hout;
-#ifdef ENABLE_GZIP
 	extern gzFile gz;
-#endif /* ENABLE_GZIP */
 #ifdef ENABLE_STATIC
 	extern int generating_static;
 #endif /* ENABLE_STATIC */
@@ -500,10 +495,8 @@ render_page(void)
 #ifdef ENABLE_STATIC
 	if (!generating_static) {
 #endif /* ENABLE_STATIC */
-#ifdef ENABLE_GZIP
 		if (gz != NULL)
 			fputs("Content-Encoding: gzip\r\n", stdout);
-#endif /* ENABLE_GZIP */
 		if (globp.type == PAGE_RSS)
 			fputs("Content-type: application/rss+xml;"
 			    "charset="CHARSET"\r\n\r\n", hout);

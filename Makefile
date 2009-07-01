@@ -6,9 +6,6 @@ CFLAGS+=-DENABLE_COMMENTS
 # Uncomment to allow visitors to post comments
 CFLAGS+=-DENABLE_POST_COMMENT
 
-# Uncomment to enable the GZip compression of the HTTP protocol
-CFLAGS+=-DENABLE_GZIP
-LDFLAGS+=-lz
 
 # Uncomment to enable the static mode
 CFLAGS+=-DENABLE_STATIC
@@ -21,6 +18,8 @@ CFLAGS+=-DENABLE_STATIC
 
 PROG=blog
 CFLAGS+=-W -Wall -Wpointer-arith -Wbad-function-cast
+LDFLAGS+=-lz
+
 SRCS+= main.c output.c post.c read.c render.c static.c
 OBJS= ${SRCS:.c=.o}
 
