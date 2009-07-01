@@ -15,6 +15,8 @@
 		.header .logo {font-size: 200%;}
 		.header .logo a:link,
 		.header .logo a:visited{text-decoration: none;}
+		.header	.menu {font-size: 75%;
+			       float: right;}
 		.footer .copyright {text-align: center;
 			 font-style: italic;
 			 font-size: 60%;}
@@ -26,7 +28,8 @@
 				   margin: 1em;
 				   font-family: monospace;
 				   font-size: 90%;}
-		.article {margin: 1em 3em 1em 3em;}
+		.article {margin: 1em 4em 1em 4em;
+			  text-align: justify;}
 		.article h1 {font-size: 110%;}
 		.article h1 a:link,
 		.article h1 a:visited {text-decoration: none;}
@@ -36,7 +39,7 @@
 		              border: 1px solid #CCC;}
 		.info {font-size: 90%;
 		       font-family: monospace;}
-		.comments {max-width: 80%;
+		.comments {width: 80%;
 			   margin-left: auto;
 			   margin-right: auto;}
 		.comments .comment {margin: 1em;}
@@ -45,7 +48,12 @@
 <body>
 
 <div class="header">
-	<div class="logo"><a href="%%BASE_URL%%"><b>%%SITE_NAME%%</b></a></div>
+	<div class="logo">
+		<a href="%%BASE_URL%%"><b>%%SITE_NAME%%</b></a>
+	</div>
+	<div class="menu">
+		[ <a href="%%BASE_URL%%">index</a> | <a href="%%RSS_URL%%">rss</a> | <a href="tags.html">tag cloud</a> | <a href="../">home</a> ]
+	</div>
 	%%DESCRIPTION%%
 </div>
 
