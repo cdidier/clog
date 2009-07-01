@@ -275,9 +275,12 @@ markers_article(const char *m, void *data)
 				while (fgets(buf, sizeof(buf), d->fmore) !=
 				    NULL)
 					hputs(buf);
-			else
+			else {
+				hputs("<b>");
 				hput_pagelink(PAGE_ARTICLE, d->aname, 0,
 				    NAV_READMORE);
+				hputs("</b>");
+			}
 		}
 	} else if (strcmp(m, "URL") == 0) {
 		hput_url(PAGE_ARTICLE, d->aname, 0);
