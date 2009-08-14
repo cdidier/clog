@@ -158,7 +158,7 @@ main(int argc, char **argv)
 		if (strncmp(p, "20", 2) == 0 || strncmp(p, "19", 2) == 0) {
 #if defined(ENABLE_COMMENTS) && defined(ENABLE_POST_COMMENT)
 			if (strcmp(getenv("REQUEST_METHOD"), "POST") == 0) {
-				post_comment(p);
+				post_article_comment(p);
 				goto out;
 			}
 #endif /* POST_COMMENT */
