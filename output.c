@@ -20,7 +20,10 @@
 static char rcsid[] = "$Id$";
 #endif
 
+#include <assert.h>
 #include <err.h>
+#include <errno.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -28,35 +31,87 @@ static char rcsid[] = "$Id$";
 #include <sys/types.h>
 #include <zlib.h>
 
-#ifdef __linux__
-#include "openbsd-compat/sha1.h"
-#else
-#include <sha1.h>
-#endif
-
 #include "common.h"
 #include "output.h"
 
-
-#ifdef ENABLE_STATIC
-void	add_static_tag(const char *, long);
-void	add_static_article(const char *);
-extern int from_cmd, generating_static;
-#endif /* ENABLE_STATIC */
-
 #define MARKER_TAG "%%"
 
-extern FILE	*hout;
-extern gzFile	 gz;
+FILE		*hout = stdout;
+static gzFile	 gz = NULL;
+extern enum STATUS status;
+
+void
+open_output(const char *type)
+{
+	char *env;
+
+	if (status & STATUS_FROMCMD || status & STATUS_STATIC)
+		return;
+	if ((env = getenv("HTTP_ACCEPT_ENCODING")) != NULL
+	    && strstr(env, "gzip") != NULL) {
+		if ((gz = gzdopen(fileno(stdout), "wb9")) == NULL) {
+			if (errno != 0)
+				warn("gzdopen");
+			else
+				warnx("gzdopen");
+		} else
+			fputs("Content-Encoding: gzip\r\n", stdout);
+	}
+	fprintf(stdout, "Content-type: %s;charset=" CHARSET "\r\n\r\n", type);
+	fflush(stdout);
+}
+
+void
+close_output(void)
+{
+	if (gz != NULL)
+		gzclose(gz);
+	else
+		fflush(hout);
+}
+
+void
+document_begin_redirection(void)
+{
+	fputs("Status: 302\r\nLocation: ", stdout);	
+}
+
+void
+document_end_redirection(void)
+{
+	fputs("\r\n\r\n", stdout);
+	fflush(stdout);
+}
+
+void
+document_not_found(void)
+{
+	if (status & STATUS_STATIC && !(status & STATUS_FROMCMD))
+		return;
+	else if (status & STATUS_FROMCMD)
+		warnx("Document not found.");
+	else {
+		fputs("Status: 404 Not found\r\n"
+		    "Content-type: text/html\r\n\r\n"
+		    "<!DOCTYPE HTML PUBLIC \"-//IETF//DTD HTML 2.0//EN\">\n"
+		    "<HTML><HEAD>\n"
+		    "<TITLE>404 Not Found</TITLE>\n"
+		    "</HEAD><BODY>\n"
+		    "<H1>Not Found</H1>\n"
+		    "The requested URL ", stdout);
+		fputs(getenv("SCRIPT_NAME"), stdout);
+		fputc('?', stdout);
+		fputs(getenv("QUERY_STRING"), stdout);
+		fputs(" was not found on this server.<P>\n"
+		    "</BODY></HTML>\n", stdout);
+		fflush(stdout);
+	}
+}
 
 void
 hputc(const char c)
 {
-#ifdef ENABLE_STATIC
-	if (gz != NULL && !generating_static)
-#else
 	if (gz != NULL)
-#endif /* ENABLE_STATIC */
 		gzputc(gz, c);
 	else
 		fputc(c, hout);
@@ -65,11 +120,7 @@ hputc(const char c)
 void
 hputs(const char *s)
 {
-#ifdef ENABLE_STATIC
-	if (gz != NULL && !generating_static)
-#else
 	if (gz != NULL)
-#endif /* ENABLE_STATIC */
 		gzputs(gz, s);
 	else
 		fputs(s, hout);
@@ -78,11 +129,7 @@ hputs(const char *s)
 void
 hputd(const long long l)
 {
-#ifdef ENABLE_STATIC
-	if (gz != NULL && !generating_static)
-#else
 	if (gz != NULL)
-#endif /* ENABLE_STATIC */
 		gzprintf(gz, "%lld", l);
 	else
 		fprintf(hout, "%lld", l);
@@ -128,144 +175,127 @@ hput_escaped(const char *s)
 }
 
 void
-hput_url(int type, const char *name, ulong page)
+hput_url(char *page, ...)
 {
-#ifdef ENABLE_STATIC
-	extern int follow_url;
-#endif /* ENABLE_STATIC */
+	va_list ap;
+	char *s;
+	unsigned long p, n;
 
-	if (type == PAGE_UNKNOWN)
-		hput_escaped(name);
-	else {
-#ifdef ENABLE_STATIC
-		hputs(BASE_URL);
-#else
-		hputs(BIN_URL);
-		if (type != PAGE_INDEX && name != NULL)
-			hputc('/');
-#endif /* ENABLE_STATIC */
-		switch (type) {
-		case PAGE_INDEX:
-			if (name != NULL) {
-				hputs("tag");
-#ifdef ENABLE_STATIC
-				hputc('_');
-#else
-				hputc('/');
-#endif /* ENABLE_STATIC */
-				hputs(name);
-			}
-			if (page > 0) {
-#ifdef ENABLE_STATIC
-				if (name == NULL)
-					hputs("index");
-				hputc('_');
-				hputd(page);
-#else
-				hputs("?p=");
-				hputd(page);
-#endif /* ENABLE_STATIC */
-			}
-#ifdef ENABLE_STATIC
-			if (page > 0 || name != NULL)
-				hputs(".html");
-			if (follow_url)
-				add_static_tag(name, page);
-#endif /* ENABLE_STATIC */
-			break;
-		case PAGE_ARTICLE:
-			hputs(name);
-#ifdef ENABLE_STATIC
+	hputs(status & STATUS_STATIC ? BASE_URL : BIN_URL);
+	va_start(ap, page);
+	if (strcmp(page, "article") == 0) {
+		s = va_arg(ap, char *);
+		if (status & STATUS_STATIC) {
+			hputs(s);
 			hputs(".html");
-			if (follow_url)
-				add_static_article(name);
-#endif /* ENABLE_STATIC */
-			break;
-		case PAGE_RSS:
-			hputs("rss");
-			if (name != NULL) {
-#ifdef ENABLE_STATIC
-				hputc('_');
-#else
-				hputc('/');
-#endif /* ENABLE_STATIC */
-				hputs(name);
-			}
-#ifdef ENABLE_STATIC
-			hputs(".xml");
-#endif /* ENABLE_STATIC */
-			break;
-		case PAGE_TAG_CLOUD:
-			hputs("tags");
-#ifdef ENABLE_STATIC
-			hputs(".html");
-#endif /* ENABLE_STATIC */
-			break;
+		} else {
+			 hputs("?article=");
+			 hputs(s);
 		}
-	}
-}
+	} else if (strcmp(page, "rss") == 0) {
+		s = va_arg(ap, char *);
+		if (status & STATUS_STATIC) {
+			hputs("rss");
+			if (!EMPTYSTRING(s)) {
+				hputc('_');
+				hputs(s);
+			}
+			hputs(".xml");
+		} else {
+			hputs("?page=rss");
+			if (!EMPTYSTRING(s)) {
+				hputs("&tag=");
+				hputs(s);
+			}
 
-void
-hput_pagelink(int type, const char *name, ulong page, const char *text)
-{
-	hputs("<a href=\"");
-	hput_url(type, name, page);
-	hputs("\">");
-	hput_escaped(text);
-	hputs("</a>");
+		}
+	} else if (strcmp(page, "tag") == 0) {
+		s = va_arg(ap, char *);
+		p = va_arg(ap, unsigned long);
+		n = va_arg(ap, unsigned long);
+		if (status & STATUS_STATIC) {
+			hputs("index");
+			if (!EMPTYSTRING(s)) {
+				hputc('_');
+				hputs(s);
+			}
+			if (p != 0) {
+				hputc('-');
+				hputd(p);
+			}
+			hputs(".html");
+		} else {
+			if (!EMPTYSTRING(s) || p != 0 || n != NB_ARTICLES)
+				hputc('?');
+			if (!EMPTYSTRING(s)) {
+				hputs("tag=");
+				hputs(s);
+			}
+			if (!EMPTYSTRING(s) && p != 0)
+				hputc('&');
+			if (p != 0) {
+				hputs("p=");
+				hputd(p);
+			}
+			if ((!EMPTYSTRING(s) || p != 0) && n != NB_ARTICLES)
+				hputc('&');
+			if (n != NB_ARTICLES) {
+				hputs("n=");
+				hputd(n);
+			}
+		}
+	} else if (strcmp(page, "tags") == 0) {
+		if (status & STATUS_STATIC)
+			hputs("tags.html");
+		else
+			hputs("?page=tags");
+	}
+	va_end(ap);
 }
 
 static int
 hput_generic_markers(const char *m)
 { 
-	extern struct page globp;
-
 	if (strcmp(m, "BASE_URL") == 0)
-		hput_url(PAGE_INDEX, NULL, 0);
+		hputs(BASE_URL);
 	else if (strcmp(m, "SITE_NAME") == 0)
 		hputs(SITE_NAME);
 	else if (strcmp(m, "DESCRIPTION") == 0)
 		hputs(DESCRIPTION);
-	else if (strcmp(m, "COPYRIGHT") == 0)
-		hputs(COPYRIGHT);
 	else if (strcmp(m, "CHARSET") == 0)
 		hputs(CHARSET);
-	else if (strcmp(m, "RSS_TITLE") == 0) {
-		hputs(SITE_NAME);
-		hputs(" RSS");
-		if (globp.type == PAGE_INDEX && globp.i.tag != NULL) {
-			hputs(" - tag:");
-			hputs(globp.i.tag);
-		}
-	} else if (strcmp(m, "RSS_URL") == 0) {
-		if (globp.type == PAGE_INDEX)
-			hput_url(PAGE_RSS, globp.i.tag, 0);
-		else
-			hput_url(PAGE_RSS, NULL, 0);
-	} else
+	else if (strcmp(m, "COPYRIGHT") == 0)
+		hputs(COPYRIGHT);
+	else
 		return 0;
 	return 1;
 }
 
 void
-parse_template(const char *file, parse_markers_cb cb, void *data)
+parse_template(const char *file, markers_cb cb, void *data)
 {
-	char path[MAXPATHLEN], buf[BUFSIZ], *a, *b;
-	FILE *fin;
+	char path[MAXPATHLEN], *buf, *lbuf, *a, *b;
+	FILE *f;
+	size_t len;
 
-#ifdef ENABLE_STATIC
-	if (from_cmd)
-		snprintf(path, MAXPATHLEN, CHROOT_DIR TEMPLATES_DIR "/%s",
-		   file);
-	else
-#endif /* ENABLE_STATIC */
-		snprintf(path, MAXPATHLEN, TEMPLATES_DIR "/%s", file);
-	if ((fin = fopen(path, "r")) == NULL) {
+	snprintf(path, MAXPATHLEN, "%s" TEMPLATES_DIR "/%s",
+	    status & STATUS_FROMCMD ? CHROOT_DIR : "", file);
+	if ((f = fopen(path, "r")) == NULL) {
 		 warn("fopen: %s", path);
 		 return;
 	}
-	while (fgets(buf, BUFSIZ, fin) != NULL) {
-		buf[strcspn(buf, "\n")] = '\0';
+	lbuf = NULL;
+	while ((buf = fgetln(f, &len))) {
+		if (buf[len - 1] == '\n')
+			buf[len - 1] = '\0';
+		else {
+			/* EOF without EOL, copy and add the NUL */
+			if ((lbuf = malloc(len + 1)) == NULL)
+				err(1, NULL);
+			memcpy(lbuf, buf, len);
+			lbuf[len] = '\0';
+			buf = lbuf;
+		}
 		for (a = buf; (b = strstr(a, MARKER_TAG)) != NULL; a = b+2) {
 			*b = '\0';
 			hputs(a);
@@ -273,11 +303,12 @@ parse_template(const char *file, parse_markers_cb cb, void *data)
 			if ((b = strstr(a, MARKER_TAG)) != NULL) {
 				*b = '\0';
 				if (hput_generic_markers(a));
-				else
+				else if (cb != NULL)
 					cb(a, data);
 			}
 		}
 		hputs(a);
 		hputc('\n');
 	}
+	free(lbuf);
 }

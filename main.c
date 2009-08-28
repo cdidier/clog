@@ -1,7 +1,7 @@
 /*
  * $Id$
  *
- * Copyright (c) 2008 Colin Didier <cdidier@cybione.org>
+ * Copyright (c) 2008,2009 Colin Didier <cdidier@cybione.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -21,170 +21,215 @@ static char rcsid[] = "$Id$";
 #endif
 
 #include <err.h>
-#include <errno.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <zlib.h>
 
 #include "common.h"
+#include "output.h"
+#include "articles.h"
+#include "comments.h"
 
-void render_page(void);
+void render_page_article(struct article *);
+void render_page_tag(struct tag *);
+void render_page_tags(void);
+void render_rss(struct tag *);
+void sanitize_input(char *);
+void generate_static(const char *cmd);
 
+enum STATUS	 status;
+char		*error_str;
+struct query	*query_get, *query_post;
 
-#if defined(ENABLE_COMMENTS) && defined(ENABLE_POST_COMMENT)
-void post_article_comment(const char *);
-#endif /* ENABLE_POST_COMMENT */
-
-#ifdef ENABLE_STATIC
-void generate_static(void);
-void update_static(void);
-void update_static_article(const char *, int);
-int from_cmd, follow_url, generating_static;
-#endif /* ENABLE_STATIC */
-
-FILE		*hout;
-gzFile		 gz;
-struct page	 globp;
-
-static char *
-get_params(void)
-{
-	char *env;
-
-	if ((env = getenv("PATH_INFO")) == NULL)
-		return NULL;
-	while (*env == '/')
-		++env;
-	if (*env == '\0')
-		return NULL;
-	return env;
-}
-
+#ifdef DEFAULT_STATIC
 static void
-parse_query(void)
+handle_static_url(void)
 {
 	char *q, *s;
-	long offset;
+	unsigned long p;
 	const char *errstr;
 
-	q = getenv("QUERY_STRING");
-	for (; q != NULL && *q != '\0'; q = s) {
-		if ((s = strchr(q, '&')) != NULL)
-			*s++ = '\0';	
-		if (globp.type == PAGE_INDEX && strncmp(q, "p=", 2) == 0) {
-			q += 2;
-			offset = strtonum(q, 0, LONG_MAX, &errstr);
-			if (errstr == NULL)
-				globp.i.page = offset;
+	status |= STATUS_STATIC;
+	if ((q = get_query_param(query_get, "page")) != NULL && *q != '\0') {
+		if (strcmp(q, "tags") == 0) {
+			document_begin_redirection();
+			hput_url("tags");
+			document_end_redirection();
+		} else if (strcmp(q, "rss") == 0) {
+			if ((q = get_query_param(query_get, "tag")) != NULL) {
+				if (*q != '\0')
+					sanitize_input(q);
+				else
+					q = NULL;
+			}
+			document_begin_redirection();
+			hput_url("rss", q);
+			document_end_redirection();
+		} else
+			document_not_found();
+	} else if ((q = get_query_param(query_get, "article")) != NULL) {
+		if (!is_article_name(q, strlen(q))) {
+			document_not_found();
+			return;
 		}
+		sanitize_input(q);
+		if (status & STATUS_POST) {
+			if (post_comment(q) == -1) {
+				if (read_article(q, render_page_article) == -1)
+					document_not_found();
+				return;
+			}
+			generate_static(q);
+		}
+		document_begin_redirection();
+		hput_url("article", q);
+		document_end_redirection();
+	} else {
+		/* extract the page */
+		p = 0;
+		if ((s = get_query_param(query_get, "p")) != NULL) {
+			p = strtonum(s, 0, LONG_MAX, &errstr);
+			if (errstr != NULL) {
+				document_not_found();
+				return;
+			}
+		}
+		/* extract the tag */
+		if ((q = get_query_param(query_get, "tag")) != NULL) {
+			if (*q != '\0')
+				sanitize_input(q);
+			else
+				q = NULL;
+		}
+		document_begin_redirection();
+		hput_url("tag", q, p, NB_ARTICLES);
+		document_end_redirection();
+	}
+}
+#endif
+
+static void
+handle_url(void)
+{
+	char *q, *s;
+	unsigned long p, n;
+	const char *errstr;
+
+	if ((q = get_query_param(query_get, "page")) != NULL && *q != '\0') {
+		if (strcmp(q, "tags") == 0)
+			render_page_tags();
+		else if (strcmp(q, "rss") == 0) {
+			if ((q = get_query_param(query_get, "tag")) != NULL) {
+				if (*q != '\0')
+					sanitize_input(q);
+				else
+					q = NULL;
+			}
+			if (read_tag(q, 0, NB_ARTICLES, render_rss) == -1)
+				document_not_found();
+		} else
+			document_not_found();
+	} else if ((q = get_query_param(query_get, "article")) != NULL) {
+		if (!is_article_name(q, strlen(q))) {
+			document_not_found();
+			return;
+		}
+		sanitize_input(q);
+		if (status & STATUS_POST && post_comment(q) != -1
+		    && !(status & STATUS_FROMCMD)) {
+			document_begin_redirection();
+			hput_url("article", q);
+			document_end_redirection();
+		} else if (read_article(q, render_page_article) == -1)
+			document_not_found();
+	} else {
+		/* extract the page */
+		p = 0;
+		if ((s = get_query_param(query_get, "p")) != NULL) {
+			p = strtonum(s, 0, LONG_MAX, &errstr);
+			if (errstr != NULL) {
+				document_not_found();
+				return;
+			}
+		}
+		/* extract the number of article per page */
+		n = NB_ARTICLES;
+		if ((s = get_query_param(query_get, "n")) != NULL) {
+			n  = strtonum(s, 0, LONG_MAX, &errstr);
+			if (errstr != NULL || n == 0)
+				n = NB_ARTICLES;
+		}
+		/* extract the tag */
+		if ((q = get_query_param(query_get, "tag")) != NULL) {
+			if (*q != '\0')
+				sanitize_input(q);
+			else
+				q = NULL;
+		}
+		if (read_tag(q, p, n, render_page_tag) == -1)
+			document_not_found();
 	}
 }
 
 static void
-enable_gzip(void)
+usage(void)
 {
-	char *env;
+	extern char *__progname;
 
-	if ((env = getenv("HTTP_ACCEPT_ENCODING")) == NULL)
-		return;
-	if (strstr(env, "gzip") == NULL)
-		return;
-	if ((gz = gzdopen(fileno(stdout), "wb9")) == NULL) {
-		if (errno != 0)
-			warn("gzdopen");
-		else
-			warnx("gzdopen");
-	}
-}
-
-void
-redirect(const char *aname)
-{
-	fputs("Status: 302\r\nLocation: ", stdout);
-#ifdef ENABLE_STATIC
-	fputs(BASE_URL, stdout);
-	if (aname != NULL) {
-		fputs(aname, stdout);
-		fputs(".html", stdout);
-	}
-#else
-	fputs(BIN_URL, stdout);
-	if (aname != NULL) {
-		fputc('/', stdout);
-		fputs(aname, stdout);
-	}
-#endif /* ENABLE_STATIC */
-	fputs("\r\n\r\n", stdout);
-	fflush(stdout);
+	fprintf(stderr, "usage: %s [-h] [-q query] [-s [page]]\n"
+	    "\t -h display this help.\n"
+	    "\t -q query a page (everything after '?' in an URL).\n"
+	    "\t -s if no argument is given, the links will point to the static files.\n"
+	    "\t    if an argument is given, static files of the page will be generated.\n",
+	    __progname);
+	exit(1);
 }
 
 int
 main(int argc, char **argv)
 {
-	char *p;
+	char ch;
+	char *env;
 
-	gz = NULL;
-	enable_gzip();
-	hout = stdout;
-	memset(&globp, 0, sizeof(struct page));
-	parse_query();
-
-#ifdef ENABLE_STATIC
-	generating_static = follow_url = from_cmd = 0;
-	if ((from_cmd = (getenv("GEN_STATIC") != NULL))) {
-		generate_static();
-	} else if ((from_cmd = ((p = getenv("UP_STATIC")) != NULL))) {
-		if (p != NULL
-		    && (strncmp(p, "20", 2) == 0 || strncmp(p, "19", 2) == 0))
-			update_static_article(p, 1);
-		else
-			update_static();
-#if defined(ENABLE_COMMENTS) && defined(ENABLE_POST_COMMENT)
-	} else if ((p = get_params()) != NULL
-	    && (strncmp(p, "20", 2) == 0 || strncmp(p, "19", 2) == 0)) {
-		if (strcmp(getenv("REQUEST_METHOD"), "POST") == 0)
-			post_article_comment(p);
-		else
-			redirect(p);
-#endif /* POST_COMMENT */
-	} else
-		redirect(NULL);
-
-#else
-
-	if ((p = get_params()) != NULL) {
-		if (strncmp(p, "20", 2) == 0 || strncmp(p, "19", 2) == 0) {
-#if defined(ENABLE_COMMENTS) && defined(ENABLE_POST_COMMENT)
-			if (strcmp(getenv("REQUEST_METHOD"), "POST") == 0) {
-				post_article_comment(p);
-				goto out;
+	status = STATUS_NONE;
+	if (getenv("SERVER_NAME") == NULL)
+		status |= STATUS_FROMCMD;
+	if ((env = getenv("REQUEST_METHOD")) != NULL
+	    && strcmp(env, "POST") == 0)
+		status |= STATUS_POST;
+	error_str = NULL;
+	if (status & STATUS_FROMCMD) {
+		while ((ch = getopt(argc, argv, "hq:s")) != -1)
+			switch (ch) {
+			case 'q':
+				if (setenv("QUERY_STRING", optarg, 1) == -1)
+					err(1, "setenv");
+				break;
+			case 's':
+				status |= STATUS_STATIC;
+				/* handle the optionnal parameter */
+				if ((argv[optind]) && (argv[optind][0] != '-')) {
+					generate_static(argv[optind++]);
+					goto out;
+				}
+				break;
+			default:
+				usage();
 			}
-#endif /* POST_COMMENT */
-			globp.type = PAGE_ARTICLE;
-			globp.a.name = p;
-		} else if (strncmp(p, "tag/", 4) == 0) {
-			globp.type = PAGE_INDEX;
-			if (p[4] != '\0')
-				globp.i.tag = p+4;
-		} else if (strcmp(p, "tags") == 0)
-			globp.type = PAGE_TAG_CLOUD;
-		else if (strncmp(p, "rss", 3) == 0) {
-			globp.type = PAGE_RSS;
-			if (p[3] == '/' && p[4] != '\0')
-				globp.i.tag = p+4;
-		} else
-			globp.type = PAGE_UNKNOWN;
-	} else 
-		globp.type = PAGE_INDEX;
-	render_page();
-#endif /* ENABLE_STATIC */
-
-out:
-	if (gz != NULL)
-		gzclose(gz);
+	}
+	query_get = tokenize_query(getenv("QUERY_STRING"));
+	query_post = NULL;
+#ifdef DEFAULT_STATIC
+	if (status & STATUS_FROMCMD)
+		handle_url();
 	else
-		fflush(hout);
+		handle_static_url();
+#else
+	handle_url();
+#endif
+out:	free_query(query_get);
+	if (status & STATUS_POST)
+		free_query(query_post);
 	return 0;
 }

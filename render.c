@@ -1,7 +1,7 @@
 /*
  * $Id$
  *
- * Copyright (c) 2008 Colin Didier <cdidier@cybione.org>
+ * Copyright (c) 2008,2009 Colin Didier <cdidier@cybione.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -28,493 +28,425 @@ static char rcsid[] = "$Id$";
 #include <sys/param.h>
 #include <sys/types.h>
 #include <zlib.h>
-
-#ifdef __linux__
-#include "openbsd-compat/sha1.h"
-#else
-#include <sha1.h>
-#endif
-
 #include "common.h"
 #include "output.h"
-
-struct data_ac {
-	const char	*aname;
-	const char	*title;
-	const struct tm	*tm;
-	FILE		*fbody;
-	FILE		*fmore;
-};
-
-struct data_p {
-	page_cb		*cb;
-	const char	*name;
-};
-
-int	read_article(const char *, article_cb);
-int	get_article_title(const char *, char *, size_t);
-void	read_articles(article_cb);
-ulong	read_article_tags(const char *, article_tag_cb);
-void	read_tags(tag_cb);
-
-#ifdef ENABLE_COMMENTS
-ulong	read_article_comments(const char *, article_comment_cb);
-ulong	get_article_nb_comments(const char *);
-
-struct data_c {
-	const char	*author;
-	const struct tm	*tm;
-	const char	*ip;
-	const char	*mail;
-	const char	*web;
-	FILE		*fbody;
-	ulong		 nb;
-};
-
-#ifdef ENABLE_POST_COMMENT
-struct data_cf {
-	const char	*aname;
-	char		*hash;
-	int		*jam1;
-	int		*jam2;
-};
-#endif /* ENABLE_POST_COMMENT */
-
-#endif /* ENABLE_COMMENTS */
+#include "articles.h"
+#include "comments.h"
 
 static void
-markers_error(const char *m, void *data)
+markers_comment(const char *m, struct comment *c)
 {
-	const char *msg = data;
+	char date[BUFSIZ], *buf, *a, *b, ch;
+	int freeln;
 
-	if (strcmp(m, "MESSAGE") == 0)
-		hputs(msg);
-}
-
-static void
-render_error(const char *msg)
-{
-	parse_template("error.html", markers_error, (void *)msg);
-}
-
-#ifdef ENABLE_COMMENTS
-
-static void
-markers_article_comment(const char *m, void *data)
-{
-	struct data_c *d = data;
-	char buf[BUFSIZ], *a, *b, c;
-
-	if (strcmp(m, "NAME") == 0) {
-		hput_escaped(d->author);
-	} else if (strcmp(m, "NB") == 0) {
-		hputd(d->nb);
-	} else if (strcmp(m, "DATE") == 0) {
-		strftime(buf, sizeof(buf), TIME_FORMAT, d->tm);
-		hputs(buf);
-	} else if (strcmp(m, "IP") == 0) {
-		hputs(d->ip);
-	} else if (strcmp(m, "MAIL") == 0) {
-		if (*d->mail != '\0') {
+	if (strcmp(m, "COMMENT_AUTHOR") == 0) {
+		if (!EMPTYSTRING(c->mail)) {
 			hputs("<a href=\"mailto:");
-			hput_escaped(d->mail);
+			hput_escaped(c->mail);
+			hputs("\">");
+		}
+		hput_escaped(c->author);
+		if (!EMPTYSTRING(c->mail))
+			hputs("</a>");
+	} else if (strcmp(m, "COMMENT_NB") == 0) {
+		hputd(c->number);
+	} else if (strcmp(m, "COMMENT_DATE") == 0) {
+		strftime(date, sizeof(date), TIME_FORMAT, localtime(&c->date));
+		hputs(date);
+	} else if (strcmp(m, "COMMENT_IP") == 0) {
+		if (!EMPTYSTRING(c->ip))
+			hputs(c->ip);
+	} else if (strcmp(m, "COMMENT_MAIL") == 0) {
+		if (!EMPTYSTRING(c->mail)) {
+			hputs("<a href=\"mailto:");
+			hput_escaped(c->mail);
 			hputs("\">mail</a>");
 		}
-	} else if (strcmp(m, "WEB") == 0) {
-		if (*d->web != '\0')
-			hput_pagelink(PAGE_UNKNOWN, d->web, 0, "web");
-	} else if (strcmp(m, "TEXT") == 0) {
-		while (fgets(buf, sizeof(buf), d->fbody) != NULL) {
-			buf[strcspn(buf, "\n")] = '\0';
-			for (a = buf; (b = strstr(a, "http://")) != NULL;
-			    a = b) {
+	} else if (strcmp(m, "COMMENT_WEB") == 0) {
+		if (!EMPTYSTRING(c->web)) {
+			hputs("<a href=\"");
+			hput_escaped(c->web);
+			hputs("\">web</a>");
+		}
+	} else if (strcmp(m, "COMMENT_TEXT") == 0) {
+		while ((buf = read_commentln(c, &freeln))) {
+			/* disply url as link */
+			for (a = buf; (b = strstr(a, "http://")) != NULL
+			    || (b = strstr(a, "https://")) != NULL; a = b) {
 				*b = '\0';
 				hput_escaped(a);
 				*b = 'h';
 				a = b;
-				for (c = '\0'; c == '\0' && *b != '\0' ; ++b)
+				for (ch = '\0'; ch == '\0' && *b != '\0' ; ++b)
 					if (isspace(*b)
 					    || (*b == '.' && (isspace(b[1]) ||
 					    b[1] == '\0'))
 					    || (*b == ')' && (isspace(b[1]) ||
 					    b[1] == '.' || b[1] == '\0'))) {
-						c = *b;
+						ch = *b;
 						*b = '\0';
 					}
 				--b;
-				hput_pagelink(PAGE_UNKNOWN, a, 0, a);
-				*b = c;
+				hputs("<a href=\"");
+				hput_escaped(a);
+				hputs("\">");
+				hput_escaped(a);
+				hputs("</a>");
+				*b = ch;
 			}
 			hput_escaped(a);
 			hputs("<br>\n");
+			if (freeln)
+				free(buf);
 		}
 	}
 }
 
 static void
-render_article_comment(const char *author, const struct tm *tm, const char *ip,
-    const char *mail, const char *web, FILE *fbody, ulong nb)
+render_comment(struct comment *c)
 {
-	struct data_c d = { author, tm, ip, mail, web, fbody, nb };
-
-	parse_template("comment.html", markers_article_comment, &d);
+	parse_template("article_comment.html", (markers_cb *)markers_comment,
+	    c);
 }
 
-#ifdef ENABLE_POST_COMMENT
-
-#define FORM_PREFIX	"FORM_"
-#define FORM_LEN	sizeof("FORM_")-1
-
 static void
-markers_article_comment_form(const char *m, void *data)
+markers_comment_form(const char *m, struct article *a)
 {
-	struct data_cf *d = data;
-	extern struct page globp;
+	extern char *error_str;
+	extern struct query *query_post;
+	char *s;
 
-	if (strcmp(m, "POST_URL") == 0) {
-		hputs(BIN_URL"/");
-		hputs(d->aname);
-	} else if (strcmp(m, "JAM_HASH") == 0) {
-		hputs(d->hash);
-	} else if (strcmp(m, "JAM1") == 0) {
-		hputs("&#");
-		hputd(*d->jam1+48);
-		hputc(';');
-	} else if (strcmp(m, "JAM2") == 0) {
-		hputs("&#");
-		hputd(*d->jam2+48);
-		hputc(';');
-	} else if (strncmp(m, FORM_PREFIX, FORM_LEN) == 0) {
-		if (strcmp(m+FORM_LEN, "NAME") == 0) {
-			if (globp.a.cform_name != NULL)
-				hput_escaped(globp.a.cform_name);
-		} else if (strcmp(m+FORM_LEN, "MAIL") == 0) {
-			if (globp.a.cform_mail != NULL)
-				hput_escaped(globp.a.cform_mail);
-		} else if (strcmp(m+FORM_LEN, "WEB") == 0) {
-			if (globp.a.cform_web != NULL)
-				hput_escaped(globp.a.cform_web);
-		} else if (strcmp(m+FORM_LEN, "TEXT") == 0) {
-			if (globp.a.cform_text != NULL)
-				hput_escaped(globp.a.cform_text);
-		} else if (strcmp(m+FORM_LEN, "ERROR") == 0) {
-			if (globp.a.cform_error != NULL)
-				hputs(globp.a.cform_error);
+	if (strcmp(m, "FORM_POST_URL") == 0) {
+		hputs(BIN_URL "?article=");
+		hputs(a->name);
+	} else if (strcmp(m, "ANTISPAM_JAM1") == 0) {
+		if (a->antispam != NULL) {
+			hputs("&#");
+			hputd(a->antispam->jam1+48);
+			hputc(';');
 		}
+	} else if (strcmp(m, "ANTISPAM_JAM2") == 0) {
+		if (a->antispam != NULL) {
+			hputs("&#");
+			hputd(a->antispam->jam2+48);
+			hputc(';');
+		}
+	} else if (strcmp(m, "ANTISPAM_HASH") == 0) {
+		if (a->antispam != NULL)
+			hputs(a->antispam->hash);
+	} else if (error_str == NULL)
+		return; /* ignore the following if there is no error */
+	if (strcmp(m, "FORM_ERROR") == 0) {
+		hputs("<span style=\"color: red;\"><b>");
+		hputs(error_str);
+		hputs("</b></span>");
+	} else if (strcmp(m, "FORM_AUTHOR") == 0) {
+		if ((s = get_query_param(query_post, "author")) != NULL)
+			hput_escaped(s);
+	} else if (strcmp(m, "FORM_MAIL") == 0) {
+		if ((s = get_query_param(query_post, "mail")) != NULL)
+			hput_escaped(s);
+	} else if (strcmp(m, "FORM_WEB") == 0) {
+		if ((s = get_query_param(query_post, "web")) != NULL)
+			hput_escaped(s);
+	} else if (strcmp(m, "FORM_TEXT") == 0) {
+		if ((s = get_query_param(query_post, "text")) != NULL)
+			hput_escaped(s);
 	}
 }
 
 static void
-render_article_comment_form(const char *aname)
+markers_article(const char *m, struct article *a)
 {
-	int jam1, jam2;
-	char salt[sizeof(JAM_SALT)+1], hash[SHA1_DIGEST_STRING_LENGTH];
-	struct data_cf d = { aname, hash, &jam1, &jam2 };
-
-	srand(time(NULL));
-	jam1 = rand()%(JAM_MAX-JAM_MIN+1) + JAM_MIN;
-	jam2 = rand()%(JAM_MAX-JAM_MIN+1) + JAM_MIN;
-	strlcpy(salt+1, JAM_SALT, sizeof(JAM_SALT));
-	*salt = jam1+jam2;
-	SHA1Data(salt, sizeof(JAM_SALT), hash);
-	parse_template("comment_form.html", markers_article_comment_form, &d);
-}
-
-#endif /* ENABLE_POST_COMMENT */
-
-static void
-markers_article_comments(const char *m, void *data)
-{
-	const char *aname = data;
-
-	if (strcmp(m, "COMMENTS") == 0)
-		read_article_comments(aname, render_article_comment);
-#ifdef ENABLE_POST_COMMENT
-	else if (strcmp(m, "COMMENT_FORM") == 0)
-		render_article_comment_form(aname);
-#endif /* ENABLE_POST_COMMENT */
-}
-
-static void
-render_article_comments(const char *aname)
-{
-	parse_template("comments.html", markers_article_comments,
-	    (void *)aname);
-}
-
-#endif /* ENABLE_COMMENTS */
-
-static void
-render_article_tag(const char *tname)
-{
-	hput_pagelink(PAGE_INDEX, tname, 0, tname);
-	hputc(' ');
-}
-
-static void
-markers_article(const char *m, void *data)
-{
-	struct data_ac *d = data;
+	struct article_tag *at;
 	char buf[BUFSIZ];
 	ulong nb_comments;
-	extern struct page globp;
+	extern char *error_str;
 
-	if (strcmp(m, "TITLE") == 0) {
-		hputs(d->title);
-	} else if (strcmp(m, "DATE") == 0) {
-		strftime(buf, sizeof(buf), TIME_FORMAT, d->tm);
+	if (strcmp(m, "ARTICLE_TITLE") == 0) {
+		hputs(a->title);
+	} else if (strcmp(m, "ARTICLE_DATE") == 0) {
+		strftime(buf, sizeof(buf), TIME_FORMAT, &a->date);
 		hputs(buf);
-	} else if (strcmp(m, "TAGS") == 0) {
-		if (read_article_tags(d->aname, render_article_tag) == 0)
-			hputs(NO_TAG);
-	} else if (strcmp(m, "BODY") == 0) {
-		while (fgets(buf, sizeof(buf), d->fbody) != NULL)
+	} else if (strcmp(m, "ARTICLE_TAGS") == 0) {
+		SLIST_FOREACH(at, &a->tags, next) {
+			if (at->name == NULL)
+				continue;
+			hputs("<a href=\"");
+			hput_url("tag", at->name, 0, NB_ARTICLES);
+			hputs("\">");
+			hputs(at->name);
+			hputs("</a>");
+			if (SLIST_NEXT(at, next) != NULL)
+				hputs(" / ");
+		}
+	} else if (strcmp(m, "ARTICLE_BODY") == 0) {
+		while (fgets(buf, sizeof(buf), a->body) != NULL)
 			hputs(buf);
-		if (d->fmore != NULL) {
-			if (globp.type == PAGE_ARTICLE)
-				while (fgets(buf, sizeof(buf), d->fmore) !=
-				    NULL)
+		if (a->more != NULL) {
+			if (a->display_more)
+				while (fgets(buf, sizeof(buf), a->more) != NULL)
 					hputs(buf);
 			else {
-				hputs("<b>");
-				hput_pagelink(PAGE_ARTICLE, d->aname, 0,
-				    NAV_READMORE);
-				hputs("</b>");
+				hputs("<b><a href=\"");
+				hput_url("article", a->name);
+				hputs("\">" NAVIGATION_READMORE "</a></b>");
+				if (a->more_size != 0) {
+					hputs(" (");
+					hputd(a->more_size);
+					hputc(' ');
+					hputs(NAVIGATION_BYTES);
+					hputc(')');
+				}
 			}
 		}
-	} else if (strcmp(m, "URL") == 0) {
-		hput_url(PAGE_ARTICLE, d->aname, 0);
-#ifdef ENABLE_COMMENTS
-	} else if (strcmp(m, "NB_COMMENTS") == 0) {
-		nb_comments = get_article_nb_comments(d->aname);
-		switch (nb_comments) {
-		case 0:
-			hputs("no comment");
-			break;
-		case 1:
-			hputs("1 comment");
-			break;
-		default:
-			hputd(nb_comments);
-			hputs(" comments");
-		}
-	}
-#endif /* ENABLE_COMMENTS */
-}
-
-static void
-render_article(const char *aname, const struct tm *tm, FILE *fbody,
-    FILE *fmore)
-{
-	char title[BUFSIZ];
-	struct data_ac d = { aname, title, tm, fbody, fmore };
-	extern struct page globp;
-
-	*title = '\0';
-	if (fgets(title, BUFSIZ, fbody) != NULL)
-		title[strcspn(title, "\n")] = '\0';
-	parse_template("article.html", markers_article, &d);
-	if (globp.type == PAGE_INDEX)
-		++globp.i.nb_articles;
-}
-
-static void
-render_tag(const char *tname, ulong nb_articles)
-{
-	hputs("<span style=\"font-size: ");
-	hputd(nb_articles*TAG_CLOUD_THRES+100);
-	hputs("%\">");
-	hput_pagelink(PAGE_INDEX, tname, 0, tname);
-	hputs("</span> ");
-}
-
-static void
-markers_tag_cloud(const char *m, void *data)
-{
-	if (strcmp(m, "TAGS") == 0)
-		read_tags(render_tag);
-}
-
-static void
-render_tag_cloud(void)
-{
-	parse_template("tags.html", markers_tag_cloud, NULL);
-}
-
-static void
-markers_page(const char *m, void *data)
-{
-	char buf[BUFSIZ];
-	extern struct page globp;
-
-	if (strcmp(m, "TITLE") == 0) {
-		switch (globp.type) {
-		case PAGE_INDEX:
-			if (globp.i.tag != NULL) {
-				hputs(TITLE_SEPARATOR "tag:");
-				hputs(globp.i.tag);
+	} else if (strcmp(m, "ARTICLE_URL") == 0) {
+		hput_url("article", a->name);
+	} else if (strcmp(m, "ARTICLE_COMMENTS_INFO") == 0) {
+		if (are_comments_readable(a->name)
+		    || are_comments_writable(a->name)) {
+			nb_comments = read_comments(a->name, NULL);
+			hputs("<a href=\"");
+			hput_url("article", a->name);
+			hputs("#coms\">[");
+			switch (nb_comments) {
+			case 0:
+				hputs(COMMENTS_NOCOMMENT);
+				break;
+			case 1:
+				hputs(COMMENTS_1COMMENT);
+				break;
+			default:
+				hputd(nb_comments);
+				hputc(' ');
+				hputs(COMMENTS_COMMENTS);
 			}
-			break;
-		case PAGE_ARTICLE:
-			get_article_title(globp.a.name, buf, sizeof(buf));
-			if (*buf != '\0') {
-				hputs(TITLE_SEPARATOR);
-				hputs(buf);
-			}
-			break;
-		case PAGE_TAG_CLOUD:
-			hputs(TITLE_SEPARATOR "tags");
-			break;
+			hputs("]</a>");
 		}
-	} else if (strcmp(m, "NEXT") == 0) {
-		if (globp.type == PAGE_INDEX && globp.i.page > 0)
-			hput_pagelink(PAGE_INDEX, globp.i.tag, globp.i.page-1,
-			    NAV_NEXT);
-	} else if (strcmp(m, "PREVIOUS") == 0) {
-		if (globp.type == PAGE_INDEX
-		    && globp.i.nb_articles > NB_ARTICLES)
-			hput_pagelink(PAGE_INDEX, globp.i.tag, globp.i.page+1,
-			    NAV_PREVIOUS);
-	} else if (strcmp(m, "BODY") == 0) {
-		switch (globp.type) {
-		case PAGE_UNKNOWN:
-			render_error(ERR_PAGE_UNKNOWN);
-			break;
-		case PAGE_INDEX:
-			read_articles(render_article);
-			break;
-		case PAGE_ARTICLE:
-			if (read_article(globp.a.name, render_article) == -1)
-				render_error(ERR_PAGE_ARTICLE);
-#ifdef ENABLE_COMMENTS
-			else
-				render_article_comments(globp.a.name);
-#endif /* ENABLE_COMMENTS */
-			break;
-		case PAGE_TAG_CLOUD:
-			render_tag_cloud();
-			break;
+	} else if (strcmp(m, "ARTICLE_COMMENTS") == 0) {
+		if (a->display_more) {
+			read_comments(a->name, render_comment);
+			if (are_comments_writable(a->name)
+			    || error_str != NULL) {
+				a->antispam = antispam_generate(a->name);
+				parse_template("article_comment_form.html",
+				    (markers_cb *)markers_comment_form, a);
+				free(a->antispam);
+				a->antispam = NULL;
+			}
 		}
 	}
 }
 
-#define RSS_DATE_FORMAT "%a, %d %b %Y %R:00 %z"
-#define RSS_DATE_LENGTH 32
+static void
+markers_page_article(const char *m, struct article *a) 
+{
+	if (strcmp(m, "PAGE_TITLE") == 0) {
+		hputs(" - ");
+		hputs(a->title);
+	} else if (strcmp(m, "PAGE_BODY") == 0) {
+		a->display_more = 1;
+		parse_template("article.html", (markers_cb *)markers_article,
+		    a);
+	}
+}
+
+void
+render_page_article(struct article *a)
+{
+	open_output("text/html");
+	parse_template("page.html", (markers_cb *)markers_page_article, a);
+	close_output();
+}
 
 static void
-render_rss_article_tag(const char *tname)
+render_tag_article(struct article *a)
 {
-	if (tname == NULL)
+	a->display_more = 0;
+	parse_template("article.html", (markers_cb *)markers_article, a);
+}
+
+static void
+markers_page_tag(const char *m, struct tag *t)
+{
+	if (strcmp(m, "PAGE_TITLE") == 0) {
+		if (t->name != NULL) {
+			hputs(" - tag:");
+			hputs(t->name);
+		}
+	} else if (strcmp(m, "HEADERS") == 0) {
+		/* link to the RSS feed of the tag */
+		hputs("\t<link rel=\"alternate\" type=\"application/rss+xml\""
+		    "title=\"" SITE_NAME " - RSS");
+		if (t->name != NULL) {
+			hputs(" - tag:");
+			hputs(t->name);
+		}
+		hputs("\" href=\"");
+		hput_url("rss", t->name);
+		hputs("\">\n");
+		/* no cache */
+		hputs("\t<meta http-equiv=\"cache-control\" content=\"no-cache\">");
+	} else if (strcmp(m, "NAVIGATION_NEXT") == 0) {
+		if (t->next) {
+			hputs("<a href=\"");
+			hput_url("tag", t->name, t->page+1, t->number);
+			hputs("\">" NAVIGATION_NEXT "</a>");
+		}
+	} else if (strcmp(m, "NAVIGATION_PREVIOUS") == 0) {
+		if (t->previous) {
+			hputs("<a href=\"");
+			hput_url("tag", t->name, t->page-1, t->number);
+			hputs("\">" NAVIGATION_PREVIOUS "</a>");
+		}
+	} else if (strcmp(m, "NAVIGATION_PAGE") == 0) {
+		hputd(t->page+1);
+	} else if (strcmp(m, "NAVIGATION_PAGES") == 0) {
+		hputd(t->pages);
+	} else if (strcmp(m, "PAGE_BODY") == 0) {
+		read_articles(t->name, t->offset, t->number,
+		    render_tag_article);
+	}
+}
+
+void
+render_page_tag(struct tag *t)
+{
+	open_output("text/html");
+	parse_template("page.html", (markers_cb *)markers_page_tag, t);
+	close_output();
+}
+
+static void
+markers_page_tags2(const char *m)
+{
+	SLIST_HEAD(, article_tag) list;
+	struct article_tag *at;
+	unsigned long nb_articles_total, nb_articles;
+
+
+	if (strcmp(m, "TAGS") != 0)
 		return;
-	hputs(
-	    "      <category>");
-	hputs(tname);
-	hputs("</category>\n");
+	nb_articles_total = read_articles(NULL, 0, 0, NULL);
+	SLIST_FIRST(&list) = get_article_tags(NULL);
+	SLIST_FOREACH(at, &list, next) {
+		if (at->name == NULL)
+			return;
+		nb_articles = read_articles(at->name, 0, 0, NULL);
+		if (nb_articles == 0)
+			continue;
+		hputs("<span style=\"font-size: ");
+		hputd(nb_articles * (100/nb_articles_total)+100);
+		hputs("%\"><a href=\"");
+		hput_url("tag", at->name, 0, NB_ARTICLES);
+		hputs("\">");
+		hputs(at->name);
+		hputs("</a></span> ");
+	}
+	while (!SLIST_EMPTY(&list)) {
+		at = SLIST_FIRST(&list);
+		SLIST_REMOVE_HEAD(&list, next);
+		free(at->name);
+		free(at);
+	}
 }
 
 static void
-render_rss_article(const char *aname, const struct tm *tm, FILE *fbody,
-    FILE *fmore)
+markers_page_tags(const char *m)
+{
+	if (strcmp(m, "PAGE_TITLE") == 0)
+		hputs(" - tags");
+	else if (strcmp(m, "PAGE_BODY") == 0)
+		parse_template("tags.html", (markers_cb *)markers_page_tags2,
+		    NULL);
+}
+
+void
+render_page_tags(void)
+{
+	open_output("text/html");
+	parse_template("page.html", (markers_cb *)markers_page_tags, NULL);
+	close_output();
+}
+
+static void
+render_rss_article(struct article *a)
 {
 	char buf[BUFSIZ];
+	struct article_tag *at;
 
-	hputs(
-	    "    <item>\n"
+	hputs("    <item>\n"
 	    "      <title>");
-	if (fgets(buf, sizeof(buf), fbody) != NULL) {
-		buf[strcspn(buf, "\n")] = '\0';
-		hputs(buf);
-	}
+	hputs(a->title);
 	hputs("</title>\n"
 	    "      <link>");
-	hput_url(PAGE_ARTICLE, aname, 0);
+	hput_url("article", a->name);
 	hputs("</link>\n");
-	read_article_tags(aname, render_rss_article_tag);
-	hputs(
-	    "      <description><![CDATA[");
-	while (fgets(buf, sizeof(buf), fbody) != NULL)
+	SLIST_FOREACH(at, &a->tags, next) {
+		if (at->name == NULL)
+			continue;
+		hputs("      <category>");
+		hputs(at->name);
+		hputs("</category>\n");
+	}
+	hputs("      <description><![CDATA[");
+	while (fgets(buf, sizeof(buf), a->body) != NULL)
 		hputs(buf);
-	if (fmore != NULL)
-		hput_pagelink(PAGE_ARTICLE, aname, 0, NAV_READMORE);
+	if (a->more != NULL) {
+		hputs("<b><a href=\"");
+		hput_url("article", a->name);
+		hputs("\">" NAVIGATION_READMORE "</a></b>");
+	}
 	hputs("]]></description>\n"
 	    "      <pubDate>");
-	strftime(buf, sizeof(buf), RSS_DATE_FORMAT, tm);
+	strftime(buf, sizeof(buf), "%a, %d %b %Y %R %z", &a->date);
 	hputs(buf);
 	hputs("</pubDate>\n"
 	    "      <guid isPermaLink=\"false\">");
-	hputs(aname);
+	hputs(a->name);
 	hputs("</guid>\n"
 	    "    </item>\n");
 }
 
-static void
-render_rss(void)
+void
+render_rss(struct tag *t)
 {
-	char date[RSS_DATE_LENGTH];
+	char date[32];
 	time_t now;
-	extern struct page globp;
+	extern enum STATUS status;
 
+	open_output("application/rss+xml");
 	hputs(
 	    "<?xml version=\"1.0\"?>\n"
 	    "<rss version=\"2.0\" xmlns:atom=\"http://www.w3.org/2005/Atom\">\n"
 	    "  <channel>\n"
 	    "    <atom:link href=\"");
-	hput_url(PAGE_RSS, globp.i.tag, 0);
+	if (status & STATUS_STATIC)
+		hput_url("rss", t->name);
+	else
+		hput_url("rss", NULL); /* XXX problem with '&' */
 	hputs("\" rel=\"self\" type=\"application/rss+xml\" />\n"
 	    "    <title>");
 	hputs(SITE_NAME);
-	if (globp.i.tag != NULL) {
+	if (t->name != NULL) {
 		hputs(" - tag:");
-		hputs(globp.i.tag);
+		hputs(t->name);
 	}
 	hputs("</title>\n"
 	    "    <link>");
-	hput_url(PAGE_INDEX, NULL, 0);
+	hputs(BASE_URL);
 	hputs("</link>\n"
 	    "    <description>");
 	hputs(DESCRIPTION);
 	hputs("</description>\n"
 	    "    <pubDate>");
 	time(&now);
-	strftime(date, RSS_DATE_LENGTH, RSS_DATE_FORMAT, localtime(&now));
+	strftime(date, sizeof(date), "%a, %d %b %Y %R %z", localtime(&now));
 	hputs(date);
 	hputs("</pubDate>\n");
-	read_articles(render_rss_article);
+	read_articles(t->name, t->offset, t->number, render_rss_article);
 	hputs(
 	    "  </channel>\n"
 	    "</rss>\n");
-}
-
-void
-render_page(void)
-{
-	extern struct page globp;
-	extern FILE *hout;
-	extern gzFile gz;
-#ifdef ENABLE_STATIC
-	extern int generating_static;
-#endif /* ENABLE_STATIC */
-
-#ifdef ENABLE_STATIC
-	if (!generating_static) {
-#endif /* ENABLE_STATIC */
-		if (gz != NULL)
-			fputs("Content-Encoding: gzip\r\n", stdout);
-		if (globp.type == PAGE_RSS)
-			fputs("Content-type: application/rss+xml;"
-			    "charset="CHARSET"\r\n\r\n", hout);
-		else
-			fputs("Content-type: text/html;"
-			    "charset="CHARSET"\r\n\r\n", hout);
-		fflush(hout);
-#ifdef ENABLE_STATIC
-	}
-#endif /* ENABLE_STATIC */
-	if (globp.type == PAGE_RSS)
-		render_rss();
-	else {
-		if (globp.type == PAGE_INDEX)
-			globp.i.nb_articles = 0;
-		parse_template("page.html", markers_page, NULL);
-	}
+	close_output();
 }

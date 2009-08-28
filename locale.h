@@ -1,16 +1,19 @@
 /* $Id$ */
 
-#define NAV_NEXT	"next"
-#define NAV_PREVIOUS	"previous"
-#define NAV_READMORE	"Read more..."
+#define NAVIGATION_NEXT		"next"
+#define NAVIGATION_PREVIOUS	"previous"
+#define NAVIGATION_READMORE	"Read more..."
+#define NAVIGATION_BYTES	"bytes"
 
-#define NO_TAG		"none"
+#define NO_TAG			"none"
 
-#define ERR_PAGE_UNKNOWN	"Unknown request!"
-#define ERR_PAGE_ARTICLE	"The requested article does not exists!"
+#define COMMENTS_NOCOMMENT	"Comment?"
+#define COMMENTS_1COMMENT	"1 comment"
+#define COMMENTS_COMMENTS	"comments"
 
-#define ERR_CFORM_LEN	"Your comment cannot be processed because it is too long!"
-#define ERR_CFORM_JAM	"Jam!"
-#define ERR_CFORM_NAME	"You must specify your name in the comment!"
-#define ERR_CFORM_TEXT	"You must specify the text of your comment!"
-#define ERR_CFORM_WRITE	"Cannot write the comment!"
+#define ERR_COMMENT_FORM_LEN		"Your comment cannot be processed because it is too long!"
+#define ERR_COMMENT_FORM_READ		"Cannot read the comment!"
+#define ERR_COMMENT_FORM_WRITE		"Cannot write the comment!"
+#define ERR_COMMENT_FORM_ANTISPAM	"Antispam verification failed!"
+#define ERR_COMMENT_FORM_AUTHOR		"You must specify your name in the comment!"
+#define ERR_COMMENT_FORM_TEXT		"You must specify the text of your comment!"

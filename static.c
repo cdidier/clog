@@ -21,363 +21,200 @@ static char rcsid[] = "$Id$";
 #endif
 
 #include <err.h>
-#include <errno.h>
-#include <fcntl.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/queue.h>
 #include <sys/param.h>
+#include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
 #include "common.h"
+#include "output.h"
+#include "articles.h"
 
-#ifdef ENABLE_STATIC
-
-void	render_page();
-int	foreach_article(foreach_article_cb cb, void *data);
-ulong	read_article_tags(const char *, article_tag_cb);
-time_t  get_article_mtime(const char *);
-long	get_page(const char *);
-
-struct vtag {
-	char	*tname;
-	long	 page;
-	SLIST_ENTRY(vtag)	next;
-};
-
-struct varticle {
-	char	*aname;
-	SLIST_ENTRY(varticle)	next;
-};
-
-static SLIST_HEAD(, vtag) tovisit_tags;
-static SLIST_HEAD(, vtag) visited_tags;
-static SLIST_HEAD(, varticle) tovisit_articles;
-static SLIST_HEAD(, varticle) visited_articles;
-extern int from_cmd;
+void render_page_article(struct article *);
+void render_page_tag(struct tag *);
+void render_page_tags(void);
+void render_rss(struct tag *);
 
 static void
-clean_tags(void)
-{
-	struct vtag *vt, *next;
-
-	if (!SLIST_EMPTY(&visited_tags))
-		SLIST_INSERT_HEAD(&tovisit_tags, SLIST_FIRST(&visited_tags),
-		   next);
-	for (vt = SLIST_FIRST(&tovisit_tags); vt != NULL; vt = next) {
-		next = SLIST_NEXT(vt, next);
-		free(vt->tname);
-		free(vt);
-	}
-	SLIST_INIT(&tovisit_tags);
-	SLIST_INIT(&visited_tags);
-}
-
-static void
-clean_articles(void)
-{
-	struct varticle *va, *next;
-
-	if (!SLIST_EMPTY(&visited_articles))
-		SLIST_INSERT_HEAD(&tovisit_articles,
-		    SLIST_FIRST(&visited_articles), next);
-	for (va = SLIST_FIRST(&tovisit_articles); va != NULL; va = next) {
-		next = SLIST_NEXT(va, next);
-		free(va->aname);
-		free(va);
-	}
-	SLIST_INIT(&tovisit_articles);
-	SLIST_INIT(&visited_articles);
-}
-
-void
-add_static_tag(const char *tname, long page)
-{
-	struct vtag *vt, *end;
-
-	SLIST_FOREACH(vt, &tovisit_tags, next) {
-		if ((vt->tname == NULL && tname == NULL)
-		    || (vt->tname != NULL && tname != NULL
-		    && strcmp(vt->tname, tname) == 0))
-			if (vt->page == page)
-				return;
-	}
-	SLIST_FOREACH(vt, &visited_tags, next) {
-		if ((vt->tname == NULL && tname == NULL)
-		    || (vt->tname != NULL && tname != NULL
-		    && strcmp(vt->tname, tname) == 0))
-			if (vt->page == page)
-				return;
-	}
-	if ((vt = malloc(sizeof(struct vtag))) == NULL)
-		err(1, "malloc");
-	if (tname == NULL)
-		vt->tname = NULL;
-	else if ((vt->tname = strdup(tname)) == NULL)
-		err(1, "strdup");
-	vt->page = page;
-	if ((end = SLIST_FIRST(&tovisit_tags)) != NULL)
-		while(SLIST_NEXT(end, next) != NULL)
-			end = SLIST_NEXT(end, next);
-	if (end == NULL)
-		SLIST_INSERT_HEAD(&tovisit_tags, vt, next);
-	else
-		SLIST_INSERT_AFTER(end, vt, next);
-}
-
-void
-add_static_article(const char *aname)
-{
-	struct varticle *va;
-
-	SLIST_FOREACH(va, &tovisit_articles, next) {
-		if ((va->aname == NULL && aname == NULL)
-		    || (va->aname != NULL && aname != NULL
-		    && strcmp(va->aname, aname) == 0))
-			return;
-	}
-	SLIST_FOREACH(va, &visited_articles, next) {
-		if ((va->aname == NULL && aname == NULL)
-		    || (va->aname != NULL && aname != NULL
-		    && strcmp(va->aname, aname) == 0))
-			return;
-	}
-	if ((va = malloc(sizeof(struct varticle))) == NULL)
-		err(1, "malloc");
-	if ((va->aname = strdup(aname)) == NULL)
-		err(1, "strdup");
-	SLIST_INSERT_HEAD(&tovisit_articles, va, next);
-}
-
-static time_t
-get_static_article_mtime(const char *aname)
+write_article_file(struct article *a)
 {
 	char path[MAXPATHLEN];
 	struct stat sb;
+	extern FILE *hout;
+	extern enum STATUS status;
 
-	if (from_cmd)
-		snprintf(path, MAXPATHLEN, CHROOT_DIR BASE_DIR
-		    "/%s.html", aname);
-	else
-		snprintf(path, MAXPATHLEN, BASE_DIR"/%s.html", aname);
-	if (stat(path, &sb) != -1)
-		return sb.st_mtime;
-	return 0;
+	snprintf(path, MAXPATHLEN, "%s" BASE_DIR "/%s.html",
+	    status & STATUS_FROMCMD ? CHROOT_DIR : "", a->name);
+	fprintf(stderr, "Writing %s...\n", path);
+	if ((hout = fopen(path, "w")) == NULL)
+		warn("fopen: %s", path);
+	else {
+		render_page_article(a);
+		fclose(hout);
+		if (stat(path, &sb) != -1 && sb.st_size == 0)
+			unlink(path);
+	}
 }
 
 static void
-gen_article(const char *aname)
+write_tag_file(const char *tag, unsigned long page)
 {
 	char path[MAXPATHLEN];
-	mode_t old_mask;
-	FILE *old_hout;
+	struct stat sb;
+	char page_str[20];
 	extern FILE *hout;
-	extern struct page globp;
+	extern enum STATUS status;
 
-	if (from_cmd) {
-		snprintf(path, MAXPATHLEN, CHROOT_DIR BASE_DIR
-		    "/%s.html", aname);
-		fprintf(stderr, "Generating %s...\n", path);
-	} else
-		snprintf(path, MAXPATHLEN, BASE_DIR"/%s.html", aname);
-	old_mask = umask(0002);
-	old_hout = hout;
+	snprintf(page_str, sizeof(page_str), "%lu", page);
+	snprintf(path, MAXPATHLEN, "%s" BASE_DIR "/index%s%s%s%s.html",
+	    status & STATUS_FROMCMD ? CHROOT_DIR : "",
+	    tag != NULL ? "_" : "", tag != NULL ? tag : "",
+	    page != 0 ? "-" : "", page != 0 ? page_str : "");
+	fprintf(stderr, "Writing %s...\n", path);
 	if ((hout = fopen(path, "w")) == NULL)
-		err(1, "fopen: %s", path);
-	umask(old_mask);
-	globp.type = PAGE_ARTICLE;
-	globp.a.name = aname;
-	globp.a.cform_name = globp.a.cform_mail = globp.a.cform_web =
-	    globp.a.cform_text = globp.a.cform_error = NULL;
-	render_page();
-	fclose(hout);
-	hout = old_hout;
+		warn("fopen: %s", path);
+	else {
+		read_tag(tag, page, NB_ARTICLES, render_page_tag);
+		fclose(hout);
+		if (stat(path, &sb) != -1 && sb.st_size == 0)
+			unlink(path);
+	}
 }
 
 static void
-gen_rss(const char *tname)
+write_tags_file(void)
 {
 	char path[MAXPATHLEN];
-	mode_t old_mask;
-	FILE *old_hout;
+	struct stat sb;
 	extern FILE *hout;
-	extern struct page globp;
-
-	if (from_cmd) {
-		snprintf(path, MAXPATHLEN, CHROOT_DIR BASE_DIR
-		    "/rss%s%s.xml",
-		    tname  != NULL ? "_" : "", tname != NULL ? tname : "");
-		fprintf(stderr, "Generating %s...\n", path);
-	} else
-		snprintf(path, MAXPATHLEN, BASE_DIR"/rss%s%s.xml",
-		    tname  != NULL ? "_" : "", tname != NULL ? tname : "");
-	old_mask = umask(0002);
-	old_hout = hout;
+	extern enum STATUS status;
+	
+	snprintf(path, MAXPATHLEN, "%s" BASE_DIR "/tags.html",
+	    status & STATUS_FROMCMD ? CHROOT_DIR : "");
+	fprintf(stderr, "Writing %s...\n", path);
 	if ((hout = fopen(path, "w")) == NULL)
-		err(1, "fopen: %s", path);
-	umask(old_mask);
-	globp.type = PAGE_RSS;
-	globp.i.tag = tname;
-	render_page();
-	fclose(hout);
-	hout = old_hout;
+		warn("fopen: %s", path);
+	else {
+		render_page_tags();
+		fclose(hout);
+		if (stat(path, &sb) != -1 && sb.st_size == 0)
+			unlink(path);
+	}
 }
 
 static void
-gen_index(const char *tname, long page)
-{
-	char path[MAXPATHLEN], pagenum[BUFSIZ];
-	mode_t old_mask;
-	FILE *old_hout;
-	extern FILE *hout;
-	extern struct page globp;
-
-	snprintf(pagenum, BUFSIZ, "%ld", page);
-	if (from_cmd) {
-		snprintf(path, MAXPATHLEN, CHROOT_DIR BASE_DIR
-		    "/%s%s%s%s.html",
-		    tname != NULL ? "tag_" : "index",
-		    tname != NULL ? tname : "",
-		    page > 0 ? "_" : "", page > 0 ? pagenum : "");
-		fprintf(stderr, "Generating %s...\n", path);
-	} else
-		snprintf(path, MAXPATHLEN, BASE_DIR"/%s%s%s%s.html",
-		    tname != NULL ? "tag_" : "index",
-		    tname != NULL ? tname : "",
-		    page > 0 ? "_" : "", page > 0 ? pagenum : "");
-	old_mask = umask(0002);
-	old_hout = hout;
-	if ((hout = fopen(path, "w")) == NULL)
-		 err(1, "fopen: %s", path);
-	umask(old_mask);
-	globp.type = PAGE_INDEX;
-	globp.i.tag = tname;
-	globp.i.page = page;
-	render_page();
-	fclose(hout);
-	hout = old_hout;
-	if (page == 0)
-		gen_rss(tname);
-}
-
-static void
-gen_tags(void)
+write_rss_file(const char *tag)
 {
 	char path[MAXPATHLEN];
-	mode_t old_mask;
-	FILE *old_hout;
+	struct stat sb;
 	extern FILE *hout;
-	extern struct page globp;
+	extern enum STATUS status;
 
-	if (from_cmd) {
-		strlcpy(path, CHROOT_DIR BASE_DIR"/tags.html", MAXPATHLEN);
-		fprintf(stderr, "Generating %s...\n", path);
-	} else
-		strlcpy(path, BASE_DIR"/tags.html", MAXPATHLEN);
-	old_mask = umask(0002);
-	old_hout = hout;
+	snprintf(path, MAXPATHLEN, "%s" BASE_DIR "/rss%s%s.xml",
+	    status & STATUS_FROMCMD ? CHROOT_DIR : "",
+	    tag != NULL ? "_" : "", tag != NULL ? tag : "");
+	fprintf(stderr, "Writing %s...\n", path);
 	if ((hout = fopen(path, "w")) == NULL)
-		err(1, "fopen: %s", path);
-	umask(old_mask);
-	globp.type = PAGE_TAG_CLOUD;
-	render_page();
-	fclose(hout);
-	hout = old_hout;
+		warn("fopen: %s", path);
+	else {
+		read_tag(tag, 0, NB_ARTICLES, render_rss);
+		fclose(hout);
+		if (stat(path, &sb) != -1 && sb.st_size == 0)
+			unlink(path);
+	}
 }
 
 static void
-update_static_article_add_tag(const char *tname)
+generate_article(struct article *a)
 {
-	add_static_tag(tname, 0);
+	struct article_tag *at;
+	unsigned long page;
+
+	write_article_file(a);
+	SLIST_FOREACH(at, &a->tags, next) {
+		page = at->number/NB_ARTICLES
+		    + (at->number%NB_ARTICLES != 0 ? 1 : 0) - 1;
+		write_tag_file(at->name, page);
+		if (page == 0)
+			write_rss_file(at->name);
+	}
+}
+
+static void
+generate_tags(void)
+{
+	SLIST_HEAD(, article_tag) list;
+	struct article_tag tmp, *at;
+	unsigned long nb_articles, pages, p;
+
+	SLIST_FIRST(&list) = get_article_tags(NULL);
+	tmp.name = NULL;
+	SLIST_INSERT_HEAD(&list, &tmp, next);
+	SLIST_FOREACH(at, &list, next) {
+		nb_articles = read_articles(at->name, 0, 0, NULL);
+		pages = nb_articles/NB_ARTICLES
+		    + (nb_articles%NB_ARTICLES != 0 ? 1 : 0);
+		for (p = 0; p < pages; ++p)
+			write_tag_file(at->name, p);
+	}
+	SLIST_REMOVE_HEAD(&list, next);
+	while (!SLIST_EMPTY(&list)) {
+		at = SLIST_FIRST(&list);
+		SLIST_REMOVE_HEAD(&list, next);
+		free(at->name);
+		free(at);
+	}
+	write_tags_file();
+}
+
+static void
+generate_rss(void)
+{
+	SLIST_HEAD(, article_tag) list;
+	struct article_tag tmp, *at;
+
+	SLIST_FIRST(&list) = get_article_tags(NULL);
+	tmp.name = NULL;
+	SLIST_INSERT_HEAD(&list, &tmp, next);
+	SLIST_FOREACH(at, &list, next)
+		write_rss_file(at->name);
+	SLIST_REMOVE_HEAD(&list, next);
+	while (!SLIST_EMPTY(&list)) {
+		at = SLIST_FIRST(&list);
+		SLIST_REMOVE_HEAD(&list, next);
+		free(at->name);
+		free(at);
+	}
 }
 
 void
-update_static_article(const char *aname, int new)
+generate_static(const char *cmd)
 {
-	struct vtag *vt;
-	long i, pages;
-	struct page old_page;
-	extern int generating_static;
-	extern struct page globp;
+	FILE *old_f;
+	mode_t old_mask;
+	extern FILE *hout;
+	extern enum STATUS status;
 
-	generating_static = 1;
-	old_page = globp;
-	gen_article(aname);
-	SLIST_INIT(&tovisit_tags);
-	SLIST_INIT(&visited_tags);
-	add_static_tag(NULL, 0);
-	read_article_tags(aname, update_static_article_add_tag);
-	SLIST_FOREACH(vt, &tovisit_tags, next) {
-		globp.type = PAGE_INDEX;
-		globp.i.tag = vt->tname;
-		if (new) {
-			pages = get_page(NULL);
-			for (i = 0; i <= pages; ++i)
-				gen_index(vt->tname, i);
-		} else {
-			vt->page = get_page(vt->tname);
-			gen_index(vt->tname, vt->page);
-		}
-	}
-	clean_tags();
-	generating_static = 0;
-	globp = old_page;
+	status |= STATUS_STATIC;
+	old_f = hout;
+	old_mask = umask(0002);
+	if (strcmp(cmd, "all") == 0) {
+		generate_tags();
+		read_articles(NULL, 0, 0, write_article_file);
+		generate_rss();
+	} else if (strcmp(cmd, "tags") == 0)
+		generate_tags();
+	else if (strcmp(cmd, "rss") == 0)
+		generate_rss();
+	else if (strcmp(cmd, "articles") == 0)
+		read_articles(NULL, 0, 0, write_article_file);
+	else if (is_article_name(cmd, strlen(cmd))) {
+		read_article(cmd, generate_article);
+	} else
+		document_not_found();
+	status ^= STATUS_STATIC;
+	hout = old_f;
+	umask(old_mask);
 }
-
-static int
-do_update_static(const char *aname, void *data)
-{
-	time_t mtime;
-	int *mod = data;
-
-	if ((mtime = get_static_article_mtime(aname)) == 0
-	    || mtime < get_article_mtime(aname)) {
-		update_static_article(aname, 1);
-		*mod = 1;
-	}
-	return 1;
-}
-
-void
-update_static(void)
-{
-	int mod = 0;
-	extern int generating_static;
-
-	generating_static = 1;
-	foreach_article(do_update_static, &mod);
-	if (mod)
-		gen_tags();	
-}
-
-void
-generate_static(void)
-{
-	struct vtag *vt;
-	struct varticle *va;
-	extern int follow_url, generating_static;
-
-	generating_static = follow_url = 1;
-	SLIST_INIT(&tovisit_tags);
-	SLIST_INIT(&visited_tags);
-	SLIST_INIT(&tovisit_articles);
-	SLIST_INIT(&visited_articles);
-	add_static_tag(NULL, 0); /* Starting point: index.html */
-	while((vt = SLIST_FIRST(&tovisit_tags)) != NULL) {
-		gen_index(vt->tname, vt->page);
-		SLIST_REMOVE_HEAD(&tovisit_tags, next);
-		SLIST_INSERT_HEAD(&visited_tags, vt, next);
-	}
-	clean_tags();
-	while((va = SLIST_FIRST(&tovisit_articles)) != NULL) {
-		gen_article(va->aname);
-		SLIST_REMOVE_HEAD(&tovisit_articles, next);
-		SLIST_INSERT_HEAD(&visited_articles, va, next);
-	}
-	clean_articles();
-	gen_tags();
-}
-
-#endif /* ENABLE_STATIC */

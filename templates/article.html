@@ -1,17 +1,13 @@
-
 <hr>
 <div class="article">
-	<h1><a href="%%URL%%">%%TITLE%%</a></h1>
+	<h1><a href="%%ARTICLE_URL%%">%%ARTICLE_TITLE%%</a></h1>
 	<div class="info">
-		Date: %%DATE%%<br>
-		Tags: %%TAGS%%
+		Date: %%ARTICLE_DATE%%<br>
+		Tags: %%ARTICLE_TAGS%%
 	</div>
 	<p>
-%%BODY%%
+%%ARTICLE_BODY%%
 	<p>
-	<div class="info">
-		<a href="%%URL%%#com">[%%NB_COMMENTS%%]</a>
-	</div>
+	<div class="info">%%ARTICLE_COMMENTS_INFO%%</div>
 </div>
-
-
+%%ARTICLE_COMMENTS%%

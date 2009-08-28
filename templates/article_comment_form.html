@@ -1,5 +1,5 @@
-
 	<div class="comment">
+		<hr>
 		<div class="info">
 			<script type="text/javascript">
 				function toggle_visibility(eid) {
@@ -14,15 +14,15 @@
 				}
 			</script>
 			<a name="com" href="#com" onClick="javascript:toggle_visibility('comment_form');">Comment!</a>
-			<p><b>%%FORM_ERROR%%</b></p>
-			<form name="comment_form" method="post" action="%%POST_URL%%#com">
+			<p>%%FORM_ERROR%%</p>
+			<form name="comment_form" method="post" action="%%FORM_POST_URL%%">
 				<div id="comment_form">
-					<input type="hidden" name="jam_hash" value="%%JAM_HASH%%">
+					<input type="hidden" name="antispam_hash" value="%%ANTISPAM_HASH%%">
 					<table>
-						<tr><td><b>Name:</b></td><td><input type="text" name="name" maxlength="50" value="%%FORM_NAME%%"></td></tr>
+						<tr><td><b>Name:</b></td><td><input type="text" name="author" maxlength="50" value="%%FORM_AUTHOR%%"></td></tr>
 						<tr><td>Email:</td><td><input type="text" name="mail" maxlength="50" value="%%FORM_MAIL%%"></td></tr>
 						<tr><td>Website:</td><td><input type="text" name="web" maxlength="50" value="%%FORM_WEB%%"></td></tr>
-						<tr><td><b>%%JAM1%%&nbsp;&#43;&nbsp;%%JAM2%%&nbsp;&#61;</b></td><td><input type="text" name="jam" size="3" maxlength="2"></td></tr>
+						<tr><td><b>%%ANTISPAM_JAM1%%&nbsp;&#43;&nbsp;%%ANTISPAM_JAM2%%&nbsp;&#61;</b></td><td><input type="text" name="antispam_result" size="3" maxlength="2"></td></tr>
 					</table>
 					<b>Comment:</b> <span style="font-size: 80%;">(no HTML)</span><br>
 					<textarea name="text" rows="7" cols="80">%%FORM_TEXT%%</textarea><br>

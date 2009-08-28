@@ -1,21 +1,24 @@
 /* $Id$ */
 
-/* The URL of the blog base directory (very useful when using the static
- * mode) */
-#define	BASE_URL	"http://cybione.org/~cdidier/blog/"
-/* The URL of compiled binary of the blog engine */
-#define BIN_URL		"http://cybione.org/~cdidier/cgi-bin/blog"
+/* Define DEFAULT_STATIC if you want the blog engine to work in static mode
+ * by default. Accessing the binary will redirect the visitor to the static
+ * pages, posting a comment will regenerate the static files of the article...
+ */
+#define DEFAULT_STATIC
+
+/* The URL of the binary of the blog engine */
+#define BIN_URL		"http://localhost/~cdidier/cgi-bin/blog"
+/* The URL of the blog base directory */
+#define	BASE_URL	"http://localhost/~cdidier/blog/"
 
 #define SITE_NAME	"C'log"
 #define DESCRIPTION	"Colin Didier's web journal."
-#define COPYRIGHT	"Copyright &#169; 2008-2009 <a href=\"mailto:cdidier+clog@cybione.org\">Colin Didier</a>; All right reserved/Tous droits r&eacute;serv&eacute;s."
 #define CHARSET		"UTF-8"
-#define TITLE_SEPARATOR	" - "
+#define COPYRIGHT	"Copyright &#169; 2008-2009 <a href=\"mailto:cdidier+clog@cybione.org\">Colin Didier</a>; All right reserved/Tous droits r&eacute;serv&eacute;s."
 
-#ifdef ENABLE_STATIC
-#define CHROOT_DIR		"/var/www"
-#endif /* ENABLE_STATIC */
-
+/* This is the absolute path of the directory where the http server is chrooted
+ * (leave empty if not chrooted) */
+#define CHROOT_DIR	"/var/www"
 /* Where the static pages are written */
 #define BASE_DIR	"/users/cdidier/blog"
 /* Where the templates are stored */
@@ -27,15 +30,10 @@
 
 /* Number of articles per page (and also per RSS feed) */
 #define NB_ARTICLES	5
-/* Factor used to render the tag cloud (you should adjust it according
- * to the number of article) */
-#define TAG_CLOUD_THRES	30
 
 /* The format string of the date displayed in the pages (take a look at the
  * man page strftime(3) for the format) */
 #define TIME_FORMAT	"%Y-%m-%d %R"
 
-/* Parameters of the anti-spam */
-#define JAM_MIN		1
-#define	JAM_MAX		9
-#define JAM_SALT	"ec4fec4358fab0886f04fbadeea18fb77f4359e8"
+/* Parameter of the antispam, you must change it with an other random value */
+#define ANTISPAM_JAM_SALT	"ec4fec4358fab0886f04fbadeea18fb77f4359e8"

@@ -1,33 +1,26 @@
 # $Id$
 
-# Uncomment to display comments in the articl pages
-CFLAGS+=-DENABLE_COMMENTS
-
-# Uncomment to allow visitors to post comments
-CFLAGS+=-DENABLE_POST_COMMENT
-
-# Uncomment to enable the static mode
-CFLAGS+=-DENABLE_STATIC
-
 # OS compatibility (e.g. Linux)
 #COMPAT_SRCS = openbsd-compat/sha1.c openbsd-compat/strlcpy.c openbsd-compat/strtonum.c
 
 ### Usually you don't need to edit the following
 
-PROG=blog
-CFLAGS+=-W -Wall -Wpointer-arith -Wbad-function-cast
-LDFLAGS+=-lz
+BIN = blog
+DEBUG_CFLAGS = -g -W -Wall -Wpointer-arith -Wbad-function-cast
+CFLAGS += ${DEBUG_CFLAGS}
+LDFLAGS += -lz -static 
+LIBS += /usr/lib/libz.a
 
-SRCS+= main.c output.c post.c read.c render.c static.c ${COMPAT_SRCS}
-OBJS= ${SRCS:.c=.o}
+SRCS += articles.c cgi.c comments.c main.c output.c render.c static.c tools.c ${COMPAT_SRCS}
+OBJS = ${SRCS:.c=.o}
 
-all: ${PROG}
+all: ${BIN}
 
 .c.o:
 	${CC} ${CFLAGS} -o $@ -c $<
 
-${PROG}: ${OBJS}
-	${CC} ${LDFLAGS} -o ${PROG} ${OBJS}
+${BIN}: ${OBJS}
+	${CC} ${LDFLAGS} -o ${BIN} ${OBJS} ${LIBS}
 
 clean:
-	rm -f ${PROG} ${OBJS}
+	rm -f ${BIN} ${BIN}.core ${OBJS}

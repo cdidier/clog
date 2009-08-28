@@ -1,11 +1,10 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
-
 <html>
 <head>
-	<title>%%SITE_NAME%% %%TITLE%%</title>
+	<title>%%SITE_NAME%% %%PAGE_TITLE%%</title>
 	<meta http-equiv="Content-Type" content="text/html; charset=%%CHARSET%%">
 	<meta name="description" content="%%DESCRIPTION%%">
-	<link rel="alternate" type="application/rss+xml" title="%%RSS_TITLE%%" href="%%RSS_URL%%">
+%%HEADERS%%
 	<style type="text/css">
 		a:link,a:visited{color: #333333;
 		                 text-decoration: underline;}
@@ -28,7 +27,7 @@
 				   margin: 1em;
 				   font-family: monospace;
 				   font-size: 90%;}
-		.article {margin: 1em 4em 1em 4em;
+		.article {margin: 1em 3em 1em 3em;
 			  text-align: justify;}
 		.article h1 {font-size: 110%;}
 		.article h1 a:link,
@@ -39,10 +38,9 @@
 		              border: 1px solid #CCC;}
 		.info {font-size: 90%;
 		       font-family: monospace;}
-		.comments {width: 80%;
-			   margin-left: auto;
-			   margin-right: auto;}
-		.comments .comment {margin: 1em;}
+		.comment {width: 70%;
+			  margin-left: auto;
+			  margin-right: auto;}
 	</style>
 </head>
 <body>
@@ -52,17 +50,17 @@
 		<a href="%%BASE_URL%%"><b>%%SITE_NAME%%</b></a>
 	</div>
 	<div class="menu">
-		[ <a href="%%BASE_URL%%">index</a> | <a href="%%RSS_URL%%">rss</a> | <a href="tags.html">tag cloud</a> | <a href="../">home</a> ]
+		[ <a href="%%BASE_URL%%">Index</a> | <a href="%%BASE_URL%%rss.xml">RSS</a> | <a href="%%BASE_URL%%tags.html">Tags</a> | <a href="../">Home</a> ]
 	</div>
 	%%DESCRIPTION%%
 </div>
 
-%%BODY%%
+%%PAGE_BODY%%
 
+<hr>
 <div class="footer">
-	<hr>
-	<div class="nextpage">%%NEXT%%</div>
-	<div class="previouspage">%%PREVIOUS%%</div>
+	<div class="nextpage">%%NAVIGATION_NEXT%%</div>
+	<div class="previouspage">%%NAVIGATION_PREVIOUS%%</div>
 	<div class="copyright">
 		%%COPYRIGHT%%<br>
 		The sources of this blog are available <a href="http://cybione.org/~clog/">here</a>.
