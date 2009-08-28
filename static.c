@@ -47,7 +47,8 @@ write_article_file(struct article *a)
 
 	snprintf(path, MAXPATHLEN, "%s" BASE_DIR "/%s.html",
 	    status & STATUS_FROMCMD ? CHROOT_DIR : "", a->name);
-	fprintf(stderr, "Writing %s...\n", path);
+	if (status & STATUS_FROMCMD)
+		fprintf(stderr, "Writing %s...\n", path);
 	if ((hout = fopen(path, "w")) == NULL)
 		warn("fopen: %s", path);
 	else {
@@ -72,7 +73,8 @@ write_tag_file(const char *tag, unsigned long page)
 	    status & STATUS_FROMCMD ? CHROOT_DIR : "",
 	    tag != NULL ? "_" : "", tag != NULL ? tag : "",
 	    page != 0 ? "-" : "", page != 0 ? page_str : "");
-	fprintf(stderr, "Writing %s...\n", path);
+	if (status & STATUS_FROMCMD)
+		fprintf(stderr, "Writing %s...\n", path);
 	if ((hout = fopen(path, "w")) == NULL)
 		warn("fopen: %s", path);
 	else {
@@ -93,7 +95,8 @@ write_tags_file(void)
 	
 	snprintf(path, MAXPATHLEN, "%s" BASE_DIR "/tags.html",
 	    status & STATUS_FROMCMD ? CHROOT_DIR : "");
-	fprintf(stderr, "Writing %s...\n", path);
+	if (status & STATUS_FROMCMD)
+		fprintf(stderr, "Writing %s...\n", path);
 	if ((hout = fopen(path, "w")) == NULL)
 		warn("fopen: %s", path);
 	else {
@@ -115,7 +118,8 @@ write_rss_file(const char *tag)
 	snprintf(path, MAXPATHLEN, "%s" BASE_DIR "/rss%s%s.xml",
 	    status & STATUS_FROMCMD ? CHROOT_DIR : "",
 	    tag != NULL ? "_" : "", tag != NULL ? tag : "");
-	fprintf(stderr, "Writing %s...\n", path);
+	if (status & STATUS_FROMCMD)
+		fprintf(stderr, "Writing %s...\n", path);
 	if ((hout = fopen(path, "w")) == NULL)
 		warn("fopen: %s", path);
 	else {
