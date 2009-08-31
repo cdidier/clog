@@ -7,9 +7,9 @@
 #define DEFAULT_STATIC
 
 /* The URL of the binary of the blog engine */
-#define BIN_URL		"http://localhost/~cdidier/cgi-bin/blog"
+#define BIN_URL		"http://cybione.org/~cdidier/cgi-bin/blog"
 /* The URL of the blog base directory */
-#define	BASE_URL	"http://localhost/~cdidier/blog/"
+#define	BASE_URL	"http://cybione.org/~cdidier/blog/"
 
 #define SITE_NAME	"C'log"
 #define DESCRIPTION	"Colin Didier's web journal."
