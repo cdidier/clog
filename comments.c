@@ -118,6 +118,8 @@ write_comment(const char *article, const char *author, const char *mail,
 	fputc('\n', f);
 	strftime(date, sizeof(date), "%a, %d %b %Y %H:%M %z", localtime(&now));
 	fprintf(f, DATE "%s\n", date);
+	if ((s = getenv("REMOTE_ADDR")) != NULL)
+		fprintf(f, IP "%s\n", s);
 	if (!EMPTYSTRING(web))
 		fprintf(f, WEB "%s\n", web);
 	fputc('\n', f);
