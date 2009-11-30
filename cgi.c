@@ -26,6 +26,7 @@ static char rcsid[] = "$Id$";
 #include <stdlib.h>
 #include <string.h>
 #include <sys/queue.h>
+
 #include "cgi.h"
 
 #define EMPTYSTRING(x)	((x) == NULL || (*(x) == '\0'))

@@ -25,6 +25,7 @@ static char rcsid[] = "$Id$";
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include "config.h"
 #include "antispam.h"
 

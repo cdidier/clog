@@ -30,6 +30,9 @@ static char rcsid[] = "$Id$";
 #include <string.h>
 #include <unistd.h>
 #include <sys/param.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+
 #include "common.h"
 #include "antispam.h"
 #include "comments.h"
