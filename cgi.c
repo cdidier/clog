@@ -1,6 +1,6 @@
-/* $Id$ */
-
 /*
+ * $Id$
+ *
  * Copyright (c) 2008,2009 Colin Didier <cdidier@cybione.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,10 +15,6 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-
-#ifndef LINT
-static char rcsid[] = "$Id$";
-#endif
 
 #include <assert.h>
 #include <err.h>

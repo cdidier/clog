@@ -16,10 +16,6 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef LINT
-static char rcsid[] = "$Id$";
-#endif
-
 #include <assert.h>
 #include <ctype.h>
 #include <err.h>
