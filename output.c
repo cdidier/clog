@@ -32,7 +32,7 @@
 
 #define MARKER_TAG "%%"
 
-FILE		*hout = stdout;
+FILE		*hout = NULL;
 static gzFile	 gz = NULL;
 extern enum STATUS status;
 

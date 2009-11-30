@@ -188,7 +188,9 @@ main(int argc, char **argv)
 {
 	char ch;
 	char *env;
+	extern FILE *hout;
 
+	hout = stdout;
 	status = STATUS_NONE;
 	if (getenv("SERVER_NAME") == NULL)
 		status |= STATUS_FROMCMD;
