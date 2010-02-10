@@ -249,8 +249,6 @@ read_comments(const char *article, comment_cb *callback)
 			else
 				/* EOF without EOL, ignore incomplete comment */
 				goto next;
-			if (callback == NULL)
-				continue;
 			if (c.author == NULL && len > sizeof(AUTHOR)
 			    && strncmp(buf, AUTHOR, sizeof(AUTHOR)-1) == 0) {
 				c.author = strdup(buf+sizeof(AUTHOR)-1);
@@ -272,6 +270,8 @@ read_comments(const char *article, comment_cb *callback)
 			if (c.date == (time_t)-1 && len > sizeof(DATE)
 			    && strncmp(buf, DATE, sizeof(DATE)-1) == 0)
 				c.date = rfc822_date(buf+sizeof(DATE)-1);
+			if (callback == NULL)
+				continue;
 			if (c.ip == NULL && len > sizeof(IP)
 			    && strncmp(buf, IP, sizeof(IP)-1) == 0) {
 				c.ip = strdup(buf+sizeof(IP)-1);
@@ -290,8 +290,8 @@ read_comments(const char *article, comment_cb *callback)
 			}
 		}
 		if (buf != NULL) {
-			++nb_comments;
 			if (!EMPTYSTRING(c.author) && c.date != (time_t)-1) {
+				++nb_comments;
 				if (callback != NULL) {
 					c.number = nb_comments;
 					c.body = f;
