@@ -272,7 +272,7 @@ markers_page_tag(const char *m, struct tag *t)
 		}
 	} else if (strcmp(m, "HEADERS") == 0) {
 		/* link to the RSS feed of the tag */
-		hputs("\t<link rel=\"alternate\" type=\"application/rss+xml\""
+		hputs("\t<link rel=\"alternate\" type=\"application/rss+xml\" "
 		    "title=\"" SITE_NAME " - RSS");
 		if (t->name != NULL) {
 			hputs(" - tag:");
